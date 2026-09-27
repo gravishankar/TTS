@@ -15,7 +15,7 @@ Run: python lessons/07_subagents.py
 import anyio
 
 from claude_agent_sdk import AgentDefinition, ClaudeAgentOptions, query
-from common import SANDBOX, show
+from common import BUDGET_USD, MODEL, SANDBOX, show
 
 AGENTS = {
     "researcher": AgentDefinition(
@@ -35,6 +35,8 @@ AGENTS = {
 
 async def main() -> None:
     options = ClaudeAgentOptions(
+        model=MODEL,
+        max_budget_usd=BUDGET_USD,
         cwd=str(SANDBOX),
         agents=AGENTS,
         allowed_tools=["Agent", "Read", "Glob", "Grep", "Write"],

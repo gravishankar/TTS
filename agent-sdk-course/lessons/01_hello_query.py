@@ -13,11 +13,13 @@ Run: python lessons/01_hello_query.py
 import anyio
 
 from claude_agent_sdk import ClaudeAgentOptions, query
-from common import show
+from common import BUDGET_USD, MODEL, show
 
 
 async def main() -> None:
     options = ClaudeAgentOptions(
+        model=MODEL,
+        max_budget_usd=BUDGET_USD,
         system_prompt="You are a concise tutor for the Claude Agent SDK.",
         max_turns=1,
         allowed_tools=[],  # no tools: pure reasoning

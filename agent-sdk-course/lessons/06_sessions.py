@@ -13,12 +13,13 @@ Run: python lessons/06_sessions.py
 import anyio
 
 from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, ResultMessage, query
-from common import show
+from common import BUDGET_USD, MODEL, show
 
 
 async def main() -> None:
     session_id = None
-    async with ClaudeSDKClient(options=ClaudeAgentOptions(max_turns=1)) as client:
+    options = ClaudeAgentOptions(model=MODEL, max_budget_usd=BUDGET_USD, max_turns=1)
+    async with ClaudeSDKClient(options=options) as client:
         await client.query("My favourite exam domain is tool design. Remember it.")
         async for message in client.receive_response():
             show(message)
@@ -31,7 +32,9 @@ async def main() -> None:
     print("\n--- resuming from disk in a brand-new query() ---")
     async for message in query(
         prompt="Remind me once more what my favourite domain is.",
-        options=ClaudeAgentOptions(resume=session_id, max_turns=1),
+        options=ClaudeAgentOptions(
+            model=MODEL, max_budget_usd=BUDGET_USD, resume=session_id, max_turns=1
+        ),
     ):
         show(message)
 

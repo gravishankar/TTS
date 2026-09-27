@@ -14,6 +14,7 @@ import json
 import anyio
 
 from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
+from common import BUDGET_USD, MODEL
 
 SCHEMA = {
     "type": "object",
@@ -30,6 +31,8 @@ SCHEMA = {
 async def main() -> None:
     ticket = "The export button crashed again and our board meeting is in an hour!!"
     options = ClaudeAgentOptions(
+        model=MODEL,
+        max_budget_usd=BUDGET_USD,
         output_format={"type": "json_schema", "schema": SCHEMA},
         allowed_tools=[],
         max_turns=3,

@@ -15,7 +15,7 @@ from typing import Any
 import anyio
 
 from claude_agent_sdk import ClaudeAgentOptions, create_sdk_mcp_server, query, tool
-from common import show
+from common import BUDGET_USD, MODEL, show
 
 INVENTORY = {"widget": 12, "gadget": 0, "doohickey": 7}
 
@@ -44,6 +44,8 @@ async def reorder(args: dict[str, Any]) -> dict[str, Any]:
 async def main() -> None:
     server = create_sdk_mcp_server(name="shop", version="1.0.0", tools=[check_stock, reorder])
     options = ClaudeAgentOptions(
+        model=MODEL,
+        max_budget_usd=BUDGET_USD,
         mcp_servers={"shop": server},
         allowed_tools=["mcp__shop__check_stock", "mcp__shop__reorder"],
         system_prompt="You are an inventory assistant. Reorder 20 units of anything out of stock.",

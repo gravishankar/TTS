@@ -18,7 +18,7 @@ from typing import Any
 import anyio
 
 from claude_agent_sdk import ClaudeAgentOptions, HookMatcher, query
-from common import SANDBOX, show
+from common import BUDGET_USD, MODEL, SANDBOX, show
 
 BLOCKED = ("rm -rf", "sudo", "curl ", "| sh")
 AUDIT_LOG: list[str] = []
@@ -44,6 +44,8 @@ async def audit_every_tool(input_data: dict[str, Any], tool_use_id, context) -> 
 
 async def main() -> None:
     options = ClaudeAgentOptions(
+        model=MODEL,
+        max_budget_usd=BUDGET_USD,
         cwd=str(SANDBOX),
         allowed_tools=["Bash"],
         max_turns=6,

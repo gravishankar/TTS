@@ -19,7 +19,7 @@ from claude_agent_sdk import (
     PermissionResultDeny,
     ToolPermissionContext,
 )
-from common import SANDBOX, show
+from common import BUDGET_USD, MODEL, SANDBOX, show
 
 READ_ONLY = {"Read", "Glob", "Grep"}
 
@@ -34,7 +34,13 @@ async def approve(tool_name: str, tool_input: dict, context: ToolPermissionConte
 
 
 async def main() -> None:
-    options = ClaudeAgentOptions(cwd=str(SANDBOX), can_use_tool=approve, max_turns=6)
+    options = ClaudeAgentOptions(
+        model=MODEL,
+        max_budget_usd=BUDGET_USD,
+        cwd=str(SANDBOX),
+        can_use_tool=approve,
+        max_turns=6,
+    )
     async with ClaudeSDKClient(options=options) as client:
         await client.query("Write hello.txt containing 'hi', then list the files here.")
         async for message in client.receive_response():

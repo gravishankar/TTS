@@ -1,5 +1,6 @@
 """Shared helper: pretty-print the message stream every lesson produces."""
 
+import os
 from pathlib import Path
 
 from claude_agent_sdk import (
@@ -15,6 +16,12 @@ from claude_agent_sdk import (
 
 SANDBOX = Path(__file__).resolve().parent.parent / "sandbox"
 SANDBOX.mkdir(exist_ok=True)
+
+# Cost controls shared by every lesson. Haiku is the cheapest model and is
+# plenty for learning the SDK; override per run, e.g. COURSE_MODEL=sonnet.
+MODEL = os.environ.get("COURSE_MODEL", "haiku")
+# Hard stop per run, in USD. The agent loop halts once this is spent.
+BUDGET_USD = float(os.environ.get("COURSE_BUDGET_USD", "0.10"))
 
 
 def show(message) -> None:

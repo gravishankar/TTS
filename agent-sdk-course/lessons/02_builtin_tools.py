@@ -16,11 +16,13 @@ Run: python lessons/02_builtin_tools.py
 import anyio
 
 from claude_agent_sdk import ClaudeAgentOptions, query
-from common import SANDBOX, show
+from common import BUDGET_USD, MODEL, SANDBOX, show
 
 
 async def main() -> None:
     options = ClaudeAgentOptions(
+        model=MODEL,
+        max_budget_usd=BUDGET_USD,
         cwd=str(SANDBOX),
         allowed_tools=["Read", "Write", "Glob"],
         disallowed_tools=["Bash", "WebFetch", "WebSearch"],

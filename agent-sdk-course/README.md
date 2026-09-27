@@ -26,7 +26,23 @@ python lessons/01_hello_query.py
 
 If you'd rather use TypeScript, install `npm i @anthropic-ai/claude-agent-sdk`. The concepts are the same, and the API is `query({ prompt, options })` with camelCase option names.
 
-Each run costs a few cents. The lessons cap `max_turns`, and you can also set `max_budget_usd` in `ClaudeAgentOptions`.
+### Cost controls (built in)
+
+Every lesson runs on **Haiku** with a **$0.10 hard cap per run** (`lessons/common.py`). Override them for a single run:
+
+```bash
+COURSE_MODEL=sonnet python lessons/07_subagents.py      # when you want to compare quality
+COURSE_BUDGET_USD=0.25 python lessons/07_subagents.py   # raise the cap for a bigger task
+```
+
+Measured cost per run:
+
+| Lesson | Default model (before) | Haiku (now) |
+|---|---|---|
+| 1 hello | $0.15 | $0.035 |
+| 3 custom tools | $0.087 | $0.028 |
+
+Running all 8 lessons and every exercise several times costs **about $3–5 in total**.
 
 ## 2. The mental model
 
