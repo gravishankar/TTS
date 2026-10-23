@@ -3,3 +3,94 @@ __pycache__/
 .env
 agent-sdk-course/sandbox/*
 !agent-sdk-course/sandbox/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Tamil Accessible TTS: never commit audio, models, checkpoints, local data,
+# caches or credentials (see CLAUDE.md and docs/PRD.md §2, §6, §7).
+# ---------------------------------------------------------------------------
+
+# Local-only workspace (PRD §6)
+.local/
+
+# Audio: TAM recordings, reference prompts, generated speech
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.opus
+*.m4a
+*.aac
+*.aif
+*.aiff
+*.wma
+*.webm
+
+# Model weights and checkpoints
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.gguf
+*.ggml
+*.h5
+*.mlmodel
+*.mlpackage/
+*.mlmodelc/
+*.tflite
+*.npz
+checkpoints/
+models/
+!src/tamil_tts/models/
+weights/
+lightning_logs/
+runs/
+wandb/
+mlruns/
+
+# Local data and generated outputs
+data/raw/
+data/audio/
+data/private/
+outputs/
+audio/
+tamil-tts-data/
+tamil-tts-models/
+tamil-tts-cache/
+
+# Caches
+.cache/
+cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.py[cod]
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+.huggingface/
+hf_cache/
+
+# Credentials and secrets
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+service-account*.json
+*token*.json
+.netrc
+.huggingface/token
+
+# Local environment / OS / editor
+.venv*/
+venv/
+.DS_Store
+*.log
