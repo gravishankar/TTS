@@ -118,6 +118,9 @@ model**, and `verified` stays `false` in `configs/models.yaml`.
 
 ## Verification checklist (local Mac, before writing each real adapter)
 
+The detailed, step-by-step procedure is in
+[MODEL_VERIFICATION_CHECKLIST.md](MODEL_VERIFICATION_CHECKLIST.md) (C5). Summary:
+
 1. Open the Hugging Face card and record the licence, gating terms and pinned revision (commit
    SHA) in `configs/models.yaml`.
 2. Confirm the licence allows the intended use: evaluation, adaptation and distribution of

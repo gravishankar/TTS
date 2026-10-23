@@ -86,8 +86,34 @@ def test_experiment_run_mock_smoke(fixtures, config_dir, tmp_path, monkeypatch, 
     ]
     assert main(args) == 0
     out = capsys.readouterr().out
-    assert "indic-speak: ran; 0/2 ok; completeness gate fail" in out  # silent mock audio
+    assert "indic-speak: ran; 0/2 ok; completeness gate mock_not_evidence" in out
     assert "pocket-tts-tamil: not run (reference prompt not selected yet (TBD))" in out
     assert main(args) == 2  # same run id: never overwritten
     assert main(["experiment", "status", "EXP-001"]) == 0
     assert "cli-test: complete" in capsys.readouterr().out
+
+
+def test_audio_inspect(tmp_path, capsys):
+    import struct
+    import wave
+
+    path = tmp_path / "a.wav"
+    with wave.open(str(path), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(24000)
+        wav.writeframes(struct.pack("<2h", 500, -500) * 12000)
+    assert main(["audio", "inspect", str(path), "--elapsed", "0.5"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["duration_s"] == 1.0 and data["real_time_factor"] == 0.5
+    assert data["status"] == "ok" and data["sample_rate"] == 24000
+
+    silent = tmp_path / "s.wav"
+    with wave.open(str(silent), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(24000)
+        wav.writeframes(b"\x00\x00" * 100)
+    assert main(["audio", "inspect", str(silent)]) == 1
+    (tmp_path / "bad.wav").write_bytes(b"nope")
+    assert main(["audio", "inspect", str(tmp_path / "bad.wav")]) == 1

@@ -121,7 +121,7 @@ def test_full_run_writes_compact_results(setup):
     assert results["inputs"]["segments"] == 2  # one sentence each
     for system in results["systems"]:
         assert system["ran"] and system["segments_ok"] == 2
-        assert system["gate_completeness"] == "pass"
+        assert system["gate_completeness"] == "provisional_pass"
     assert (run_dir / "errors.jsonl").read_text() == ""
 
     # Reference comes from a TRAIN entry; its transcript is passed but not recorded.
@@ -147,7 +147,7 @@ def test_mock_run_fails_completeness_as_silence(setup):
         run_id="m1",
     )
     system = summary.results["systems"][0]
-    assert system["segments_silent"] == 2 and system["gate_completeness"] == "fail"
+    assert system["segments_silent"] == 2 and system["gate_completeness"] == "mock_not_evidence"
     report = (summary.run_dir / "REPORT.md").read_text()
     assert "MOCK RUN" in report
     errors = [

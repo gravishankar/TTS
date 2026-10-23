@@ -24,6 +24,7 @@ from types import MappingProxyType
 from typing import Any, Protocol, runtime_checkable
 
 from tamil_tts.config import is_tbd
+from tamil_tts.models.errors import sanitize_message
 
 OUTPUT_SUFFIX = ".wav"  # evaluation audio is WAV (C2 decision 8)
 
@@ -220,7 +221,8 @@ class BaseTTSModel(ABC):
             metadata = self._synthesize(request)
         except Exception as exc:  # adapters must not crash the runner
             output.unlink(missing_ok=True)
-            return self._fail(request, ErrorCode.RUNTIME_ERROR, f"{type(exc).__name__}: {exc}")
+            message = sanitize_message(f"{type(exc).__name__}: {exc}", _secrets(request))
+            return self._fail(request, ErrorCode.RUNTIME_ERROR, message)
         elapsed = time.perf_counter() - start
 
         if not output.is_file() or output.stat().st_size == 0:
@@ -235,6 +237,14 @@ class BaseTTSModel(ABC):
             extra=metadata.extra,
         )
         return SynthesisResult(request.segment_id, self._identity, output, metadata=metadata)
+
+
+def _secrets(request: SynthesisRequest) -> list[str]:
+    """Request values that must never appear in an error message."""
+    values = [request.text, str(request.output_path)]
+    if request.reference is not None:
+        values += [request.reference.transcript, str(request.reference.path)]
+    return values
 
 
 class UnavailableModel(BaseTTSModel):

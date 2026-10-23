@@ -20,7 +20,8 @@ def render_report(results: dict[str, Any], errors: list[dict[str, Any]]) -> str:
     if results.get("mock"):
         lines += [
             "> **MOCK RUN.** Every system was replaced by a mock model that writes digital",
-            "> silence. These numbers test the pipeline only; they say nothing about speech.",
+            "> silence. These numbers test the pipeline only. They are not evidence about any",
+            "> named model: a silent mock segment is not a failure of that model.",
             "",
         ]
     lines += [

@@ -134,8 +134,15 @@ committed automatically.
 - Result files contain ids, checksums, counts and timings only, never Tamil text, transcripts or
   absolute paths, so they can be reviewed and copied into `experiments/EXP-xxx/`. PRD §13 names
   `metrics.json`; the runner writes `results.json` as listed in §15.
-- `--mock` replaces every model with the silent mock and marks the report "MOCK RUN". Mock
-  audio is silent, so it always fails the completeness gate.
+- `--mock` replaces every model with the silent mock and marks the report "MOCK RUN". The
+  completeness gate then reads `mock_not_evidence`: a mock result is never evidence about the
+  named model (C5).
+- Completeness gate values (C5): `provisional_pass` (every segment produced readable, non-silent
+  audio), `fail`, `not_run`, `mock_not_evidence`. Automated checks cannot detect missing words,
+  truncation or mispronunciation, so a full pass needs human listening and, later, Tamil ASR as a
+  diagnostic. All numeric gate targets stay provisional until real recordings exist.
+- Model error messages pass through `models/errors.sanitize_message` (removes request text,
+  transcripts, paths, Tamil-script text) before they reach result files.
 
 ### 3.4 Evaluation and reporting (§15, §16)
 - Per experiment: `PLAN.md`, `config.yaml`, `results.json`, `errors.jsonl`,
@@ -245,6 +252,7 @@ Things the PRD does not specify. These must not be assumed in code.
 13. **RESOLVED (C2):** Local roots live under `$HOME`, outside the repository. `.local/` stays
     git-ignored as a safety net.
 14. **OPEN QUESTION:** Project licence (deferred by the user).
-15. **OPEN QUESTION:** The candidates need different Python versions (IndicF5 3.10, Indic-Speak
-    3.12, Pocket 3.10–3.14). Should real adapters run each model in its own local environment, for
-    example as a subprocess, instead of importing it into the 3.11 project environment?
+15. **RESOLVED (C5):** Each model gets its own environment under `$TAMIL_TTS_ENV_ROOT` (Pocket
+    3.11, IndicF5 3.10). Adapters will start that environment's Python as a subprocess. Whether to
+    use one process per segment or a long-lived worker is decided after L1/L2 measure load time
+    ([LOCAL_MODEL_SETUP.md](LOCAL_MODEL_SETUP.md), [MODEL_VERIFICATION_CHECKLIST.md](MODEL_VERIFICATION_CHECKLIST.md) Part D).

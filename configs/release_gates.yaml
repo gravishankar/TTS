@@ -1,5 +1,8 @@
 # Release gates (PRD §16). Never combine these into one composite score.
-# "TBD" marks values the PRD does not define yet.
+# "TBD" marks values the PRD does not define yet. All numeric targets are PROVISIONAL
+# until real recordings exist; recalibrate after EXP-001 (PRD §16).
+# The automated completeness check proves only that audio is present and not silent;
+# word-level completeness needs human listening (and later Tamil ASR as a diagnostic).
 gates:
   completeness:
     role: hard_gate

@@ -36,7 +36,19 @@ from tamil_tts.manifest import PROTECTED_SPLITS, ManifestEntry, load_manifest
 from tamil_tts.models.base import ReferenceAudio, SynthesisRequest, TTSModel, file_sha256
 from tamil_tts.splits import check_frozen, check_leakage
 
-RESULTS_FORMAT_VERSION = 1
+RESULTS_FORMAT_VERSION = 2
+# Completeness gate values. Automated checks only prove that every segment produced
+# non-silent audio; missing words or truncation need human listening (and later ASR).
+GATE_PROVISIONAL_PASS = "provisional_pass"
+GATE_FAIL = "fail"
+GATE_NOT_RUN = "not_run"
+GATE_MOCK = "mock_not_evidence"
+COMPLETENESS_NOTE = (
+    "provisional_pass means every segment produced readable, non-silent audio. It does not "
+    "show that all words were spoken or pronounced correctly; that needs human listening "
+    "and, later, Tamil ASR as a diagnostic. mock_not_evidence means a mock model wrote "
+    "the audio, so the result says nothing about the named model."
+)
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 MAX_REPORTED_ISSUES = 10
 
@@ -229,6 +241,7 @@ def _run_system(
     run_dir: Path,
     cache: SynthesisCache | None,
     env,
+    mock: bool = False,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     status = model.status()
     summary: dict[str, Any] = {
@@ -250,7 +263,7 @@ def _run_system(
         blocked = "model does not accept reference audio"
     if blocked is not None:
         summary.update(ran=False, blocked_reason=blocked, segments_ok=0, completeness=0.0)
-        summary["gate_completeness"] = "not_run"
+        summary["gate_completeness"] = GATE_NOT_RUN
         errors.append(
             {
                 "system_id": spec.id,
@@ -343,8 +356,10 @@ def _run_system(
         if synth_audio_seconds
         else None,
         peak_memory_bytes=peak_memory,
-        gate_completeness="pass" if total and ok == total else "fail",
+        gate_completeness=GATE_PROVISIONAL_PASS if total and ok == total else GATE_FAIL,
     )
+    if mock:
+        summary["gate_completeness"] = GATE_MOCK
     return summary, rows, errors
 
 
@@ -379,7 +394,7 @@ def run_experiment(
     systems, rows, errors = [], [], []
     for spec in config.systems:
         summary, sys_rows, sys_errors = _run_system(
-            spec, models[spec.id], inputs, run_dir, cache, env
+            spec, models[spec.id], inputs, run_dir, cache, env, options.mock
         )
         systems.append(summary)
         rows += sys_rows
@@ -419,6 +434,7 @@ def run_experiment(
         "systems": systems,
         "gates": {
             "completeness": {s["system_id"]: s["gate_completeness"] for s in systems},
+            "completeness_note": COMPLETENESS_NOTE,
             "frozen_regression": "not evaluated: needs a baseline run; max_regression is TBD",
             "pronunciation_errors": "not evaluated: needs human adjudication",
             "challenge_intelligibility": "not evaluated: needs human listening",

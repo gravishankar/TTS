@@ -62,6 +62,8 @@ No model is fine-tuned before the baseline evaluation (EXP-001 to EXP-003) is co
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): system architecture and planned layout
 - [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md): accessibility requirements and evaluation
 - [docs/MODEL_VERIFICATION.md](docs/MODEL_VERIFICATION.md): official sources, licences and status of each candidate model
+- [docs/LOCAL_MODEL_SETUP.md](docs/LOCAL_MODEL_SETUP.md): one-time Mac setup, directory layout, environment variables, measurement
+- [docs/MODEL_VERIFICATION_CHECKLIST.md](docs/MODEL_VERIFICATION_CHECKLIST.md): step-by-step local verification (L1 Pocket TTS, L2 IndicF5); results go in `docs/verification/`
 - [CLAUDE.md](CLAUDE.md): rules for coding agents ([AGENTS.md](AGENTS.md) points to it)
 
 ## Data safety

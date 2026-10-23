@@ -20,7 +20,10 @@ tamil-tts experiment run EXP-001
 ```
 
 GATES
-Completeness 100% (hard). Other gates need human listening or are TBD (configs/release_gates.yaml).
+Completeness 100% (hard). The automated check gives only `provisional_pass` (audio present, not
+silent); word-level completeness needs human listening. Mock runs give `mock_not_evidence`.
+All numeric targets are provisional until real recordings exist. Other gates need human
+listening or are TBD (configs/release_gates.yaml).
 
 OUTPUTS TO COMMIT (after review)
 `results.json`, `errors.jsonl`, `REPORT.md` from `$TAMIL_TTS_OUTPUT_ROOT/EXP-001/<run-id>/`.

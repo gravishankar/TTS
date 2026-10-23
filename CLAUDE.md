@@ -77,9 +77,14 @@ Improve verified Tamil text → accessible offline speech, measured on frozen TA
 - Do not select an ASR model until its Tamil support has been evaluated.
 - Training or distribution requires recorded permission (manifest `permissions` field).
 
+## LOCAL VERIFICATION (C5)
+- Verify each model on the Mac with docs/MODEL_VERIFICATION_CHECKLIST.md before writing its adapter.
+- One Python environment per model under `$TAMIL_TTS_ENV_ROOT`; adapters call it as a subprocess.
+- Mock results are never evidence about a real model. Automated completeness is provisional only.
+
 ## DEV COMMANDS
 - `python3.11 -m venv .venv && .venv/bin/pip install -e '.[dev]'`
-- `.venv/bin/python -m pytest` · `.venv/bin/ruff check src tests` · `.venv/bin/ruff format src tests`
+- `.venv/bin/python -m pytest` · `.venv/bin/ruff check src tests scripts` · `.venv/bin/ruff format src tests scripts`
 
 ## OPEN QUESTIONS
 - Do not invent missing requirements. Record them as **OPEN QUESTION** in the relevant document

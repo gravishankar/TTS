@@ -1,0 +1,73 @@
+# Model verification result. Copy to docs/verification/<model>-<YYYY-MM-DD>.yaml and fill in.
+# Check it with:  .venv/bin/tamil-tts verify result docs/verification/<file>.yaml
+# Rules: no absolute paths (write paths relative to $HOME), no private TAM text, no audio.
+# Use "unknown" or "" when a value was not checked. Never guess.
+
+model: pocket-tts-tamil            # key in configs/models.yaml
+date: "YYYY-MM-DD"
+verified_by: ""                    # initials
+overall_status: UNVERIFIED         # VERIFIED | UNVERIFIED | FAILED
+stop_reason: ""                    # required when FAILED: the STOP condition that was hit
+
+source:
+  model_card_url: ""
+  code_repository: ""
+  code_commit: ""                  # full SHA of the code that was installed
+  package_version: ""              # e.g. pocket-tts 4.0.1
+  weights_repo: ""                 # e.g. Thanushttk/pocket-tts-multilingual
+  weights_revision: ""             # full 40-character commit SHA of the weights
+  gated: unknown                   # yes | no | unknown
+  access_terms_accepted: unknown   # yes | no | not-needed | unknown
+  card_read_on: "YYYY-MM-DD"
+
+license:
+  weights: ""                      # exact licence name from the card, e.g. CC-BY-4.0
+  code: ""
+  where_stated: ""                 # e.g. "model card YAML header", "LICENSE file"
+  permits_evaluation: unknown      # true | false | unknown
+  permits_adaptation: unknown      # fine-tuning / LoRA
+  permits_distribution_of_generated_audio: unknown
+  attribution_required: unknown
+  prohibited_use_notes: ""         # e.g. voice cloning needs explicit consent
+  questions: ""                    # anything that needs a decision before use
+
+environment:
+  machine: "MacBook Pro M4 Max, 64 GB"
+  macos_version: ""                # sw_vers -productVersion
+  env_path: ""                     # relative to $HOME, e.g. tamil-tts-envs/pocket-tts
+  python_version: ""
+  packages:                        # name: version, from `uv pip freeze`
+    torch: ""
+  device: cpu                      # cpu | mps
+  hf_home: "tamil-tts-models/huggingface"
+  disk_used_mb: ""                 # du -sm of the model's cache folder
+
+interface:
+  status: UNVERIFIED               # VERIFIED | UNVERIFIED
+  invocation: ""                   # exact command or Python call that worked (no private text)
+  text_input: ""                   # argv | stdin | file | python-argument
+  reference_audio: ""              # none | audio | audio+transcript
+  output:
+    container: wav
+    sample_rate: ""
+    channels: ""
+    sample_format: ""              # pcm16 | float32
+  differences_from_docs: ""        # anything that did not match the official docs
+
+smoke_tests:
+  - id: S1
+    text: "docs/verification/smoke_text_ta.txt line 1"
+    voice_or_reference: ""         # e.g. "default (alba)", "prompts/PAN_F_HAPPY_00001.wav"
+    status: UNVERIFIED             # PASS | FAIL | UNVERIFIED
+    cold_elapsed_s: ""             # first run, includes downloads and model load
+    warm_elapsed_s: ""             # second run, same command
+    output_duration_s: ""          # from `tamil-tts audio inspect`
+    real_time_factor: ""           # warm_elapsed_s / output_duration_s
+    peak_rss_bytes: ""             # "maximum resident set size" from /usr/bin/time -l
+    audio_check: ""                # status from `tamil-tts audio inspect` (ok | silent | ...)
+    listening:
+      all_words_spoken: unknown    # true | false | unknown
+      intelligible: unknown        # true | false | unknown
+      notes: ""                    # short; describe problems by word position, not by quoting text
+
+errors: []                         # short sanitized messages; no Tamil text, no absolute paths

@@ -1,6 +1,7 @@
 """`tamil-tts` command-line interface.
 
-Implemented: config, env, models, experiment (run, status), manifest, splits and text commands.
+Implemented: config, env, models, experiment (run, status), audio, verify, manifest, splits
+and text commands.
 Listening, eval report, compare and release-check (PRD §12) are not implemented yet.
 """
 
@@ -22,6 +23,7 @@ from tamil_tts.config import (
     load_yaml,
     resolve_local_roots,
 )
+from tamil_tts.eval.completeness import AudioCheckError, check_segment_audio, inspect_wav
 from tamil_tts.experiment import (
     ExperimentError,
     RunOptions,
@@ -34,6 +36,7 @@ from tamil_tts.manifest import Issue, load_manifest
 from tamil_tts.models import ModelIdentity, candidate_models
 from tamil_tts.models.mock import MockTTSModel
 from tamil_tts.splits import check_frozen, check_leakage, freeze_splits, split_counts, split_shares
+from tamil_tts.verification import validate_verification_result
 
 
 def _print_json(data: object) -> None:
@@ -135,6 +138,38 @@ def cmd_experiment_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_audio_inspect(args: argparse.Namespace) -> int:
+    try:
+        info = inspect_wav(args.wav)
+    except AudioCheckError as exc:
+        print(f"invalid WAV: {exc}", file=sys.stderr)
+        return 1
+    check = check_segment_audio(args.wav)
+    data = {
+        "status": check.status.value,
+        "format": {1: "pcm", 3: "float"}.get(info.format_tag, str(info.format_tag)),
+        "sample_rate": info.sample_rate,
+        "channels": info.channels,
+        "bits_per_sample": info.bits_per_sample,
+        "duration_s": round(info.duration_s, 3),
+    }
+    if args.elapsed is not None:
+        data["elapsed_s"] = args.elapsed
+        data["real_time_factor"] = (
+            round(args.elapsed / info.duration_s, 4) if info.duration_s else None
+        )
+    _print_json(data)
+    return 0 if check.ok else 1
+
+
+def cmd_verify_result(args: argparse.Namespace) -> int:
+    problems = validate_verification_result(load_yaml(args.result))
+    for problem in problems:
+        print(f"ERROR: {problem}", file=sys.stderr)
+    print(f"{len(problems)} problem(s)", file=sys.stderr)
+    return 1 if problems else 0
+
+
 def cmd_manifest_validate(args: argparse.Namespace) -> int:
     report = load_manifest(args.manifest)
     print(f"{len(report.entries)} valid entr{'y' if len(report.entries) == 1 else 'ies'}")
@@ -233,6 +268,19 @@ def build_parser() -> argparse.ArgumentParser:
     status = experiment_cmds.add_parser("status", help="list runs of an experiment")
     status.add_argument("experiment")
     status.set_defaults(func=cmd_experiment_status)
+
+    audio = groups.add_parser("audio", help="inspect local audio files")
+    audio_cmds = audio.add_subparsers(dest="command", required=True)
+    inspect = audio_cmds.add_parser("inspect", help="WAV format, duration, silence, RTF")
+    inspect.add_argument("wav", type=Path)
+    inspect.add_argument("--elapsed", type=float, help="synthesis seconds, to compute RTF")
+    inspect.set_defaults(func=cmd_audio_inspect)
+
+    verify = groups.add_parser("verify", help="model verification records")
+    verify_cmds = verify.add_subparsers(dest="command", required=True)
+    result = verify_cmds.add_parser("result", help="check a docs/verification/*.yaml file")
+    result.add_argument("result", type=Path)
+    result.set_defaults(func=cmd_verify_result)
 
     manifest = groups.add_parser("manifest", help="TAM manifest tools")
     manifest_cmds = manifest.add_subparsers(dest="command", required=True)
