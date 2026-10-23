@@ -1,0 +1,4 @@
+{"id":"TAM-101","split":"train","text":"இது சரியான வரி.","audio":"${TAM_AUDIO_ROOT}/TAM-101.wav","speaker_id":"SPK-01","tags":["PROSODY"],"quality":"accepted"}
+{"id":"TAM-102","split":"holdout","text":"தவறான பிரிவு.","audio":"/Users/someone/tam/TAM-102.wav","speaker_id":"Kumar","tags":["PROSODY"],"quality":"accepted"}
+{"id":"TAM-101","split":"test","text":"மீண்டும் அதே அடையாளம்.","audio":"${TAM_AUDIO_ROOT}/TAM-101.mp3","speaker_id":"SPK-02","tags":[],"quality":"accepted"}
+not json

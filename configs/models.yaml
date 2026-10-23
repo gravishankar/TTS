@@ -1,0 +1,22 @@
+# Evaluation candidates (PRD §4A). "TBD" = not yet verified.
+# No adapter may be implemented until source, license and interface are verified
+# against official documentation (CLAUDE.md). Weights live under $TAMIL_TTS_MODEL_ROOT.
+models:
+  pocket-tts-tamil:
+    role: deployment-efficiency benchmark
+    source: TBD
+    license: TBD
+    version: TBD
+    verified: false
+  indicf5:
+    role: adaptation laboratory (reference-audio conditioning)
+    source: TBD
+    license: TBD
+    version: TBD
+    verified: false
+  indic-speak:
+    role: audiobook-quality / long-form benchmark
+    source: TBD
+    license: TBD
+    version: TBD
+    verified: false

@@ -60,6 +60,23 @@ Improve verified Tamil text → accessible offline speech, measured on frozen TA
 - Do not add a LICENSE until the user decides on one.
 - Planned layout: PRD §6, adapted in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## DECISIONS (user, C2)
+- CLAUDE.md is the main instruction file; AGENTS.md points here.
+- TAM recordings, models and caches live outside the repo under `$HOME`
+  (`TAM_AUDIO_ROOT`, `TAMIL_TTS_MODEL_ROOT`, `TAMIL_TTS_CACHE_ROOT`).
+- Never commit copyrighted book text, private TAM transcripts or identifying speaker information.
+  Speaker IDs are pseudonymous codes (`SPK-01`). Test fixtures use original text only.
+- Verify official model sources and licences before implementing any adapter.
+- Undefined evaluation thresholds stay `TBD` in `configs/`; code must refuse to use them.
+- The listening interface must be keyboard- and screen-reader accessible.
+- Python 3.11 is the development target. Evaluation audio is WAV.
+- Do not select an ASR model until its Tamil support has been evaluated.
+- Training or distribution requires recorded permission (manifest `permissions` field).
+
+## DEV COMMANDS
+- `python3.11 -m venv .venv && .venv/bin/pip install -e '.[dev]'`
+- `.venv/bin/python -m pytest` · `.venv/bin/ruff check src tests` · `.venv/bin/ruff format src tests`
+
 ## OPEN QUESTIONS
 - Do not invent missing requirements. Record them as **OPEN QUESTION** in the relevant document
   and ask the user.

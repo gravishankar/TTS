@@ -1,0 +1,10 @@
+{"id": "TAM-001", "split": "train", "text": "இன்று காலை மழை பெய்தது.", "audio": "${TAM_AUDIO_ROOT}/TAM-001.wav", "speaker_id": "SPK-01", "tags": ["PROSODY"], "quality": "accepted", "permissions": ["training"]}
+{"id": "TAM-002", "split": "train", "text": "அவள் பள்ளிக்குச் சென்றாள்.", "audio": "${TAM_AUDIO_ROOT}/TAM-002.wav", "speaker_id": "SPK-01", "tags": ["PHON-GEM"], "quality": "accepted", "permissions": ["training"]}
+{"id": "TAM-003", "split": "train", "text": "வாழைப்பழம் மிகவும் இனிமையாக இருந்தது.", "audio": "${TAM_AUDIO_ROOT}/TAM-003.wav", "speaker_id": "SPK-02", "tags": ["PHON-LIQUID"], "quality": "accepted", "permissions": ["training"]}
+{"id": "TAM-004", "split": "train", "text": "அவன் கடலில் மீன் பிடித்தான்.", "audio": "${TAM_AUDIO_ROOT}/TAM-004.wav", "speaker_id": "SPK-02", "tags": ["PHON-NASAL"], "quality": "accepted", "permissions": ["training"]}
+{"id": "TAM-005", "split": "train", "text": "நாங்கள் மாலையில் தோட்டத்தில் நடந்தோம்.", "audio": "${TAM_AUDIO_ROOT}/TAM-005.wav", "speaker_id": "SPK-01", "tags": ["PHON-GEM"], "quality": "accepted", "permissions": ["training"]}
+{"id": "TAM-006", "split": "train", "text": "குழந்தைகள் பாட்டு பாடினார்கள்.", "audio": "${TAM_AUDIO_ROOT}/TAM-006.wav", "speaker_id": "SPK-02", "tags": ["PHON-LIQUID"], "quality": "accepted", "permissions": ["training"]}
+{"id": "TAM-007", "split": "train", "text": "அம்மா சுவையான உணவு சமைத்தார்.", "audio": "${TAM_AUDIO_ROOT}/TAM-007.wav", "speaker_id": "SPK-01", "tags": ["PHON-GEM"], "quality": "accepted", "permissions": ["training"]}
+{"id": "TAM-008", "split": "validate", "text": "ஆற்றங்கரையில் ஒரு மரம் நின்றது.", "audio": "${TAM_AUDIO_ROOT}/TAM-008.wav", "speaker_id": "SPK-02", "tags": ["PHON-RHOTIC"], "quality": "accepted"}
+{"id": "TAM-009", "split": "test", "text": "எனக்கு 25 வயது ஆகிறது.", "audio": "${TAM_AUDIO_ROOT}/TAM-009.wav", "speaker_id": "SPK-03", "tags": ["NORM-NUM"], "quality": "accepted"}
+{"id": "TAM-010", "split": "challenge", "text": "நான் Chennai நகரத்திற்குச் சென்றேன்; அங்கே பழைய நண்பனைச் சந்தித்தேன்.", "audio": "${TAM_AUDIO_ROOT}/TAM-010.wav", "speaker_id": "SPK-03", "tags": ["MIXED", "literary"], "quality": "accepted"}

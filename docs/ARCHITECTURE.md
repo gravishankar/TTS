@@ -119,6 +119,16 @@ Manifest line (`data/manifests/tam.jsonl`):
 ```
 
 Local environment variables: `TAM_AUDIO_ROOT`, `TAMIL_TTS_MODEL_ROOT`, `TAMIL_TTS_CACHE_ROOT`.
+These point outside the repository under `$HOME`; `tamil-tts env check` refuses roots inside it.
+
+Implemented manifest rules (`src/tamil_tts/manifest.py`): `id` is `TAM-NNN`; `split` is one of the
+four splits; `audio` starts with `${TAM_AUDIO_ROOT}/` and is `.wav`; `speaker_id` is a pseudonymous
+`SPK-NN` code; tags are checked case-insensitively against §9. The optional `permissions` field
+(`training`, `distribution`) was added for C2 decision 10. Training refuses entries without
+`training` permission.
+
+Frozen splits (`tamil-tts splits freeze`) record ids and splits only, never text. After freezing,
+frozen ids may not move or disappear, and new ids may not enter TEST/CHALLENGE.
 
 | Split | Target | Used for training? |
 |---|---|---|
@@ -163,14 +173,12 @@ agent-sdk-course/ ✱       # unrelated pre-existing course; untouched
 
 Things the PRD does not specify. These must not be assumed in code.
 
-1. **OPEN QUESTION:** Agent contract file. PRD §19–20 make `AGENTS.md` the standing contract,
-   but the user directed that `CLAUDE.md` holds the rules and `AGENTS.md` points to it. That is the
-   current setup. Should it stay this way?
-2. **OPEN QUESTION:** Python version, package/environment manager, and dependency set for
-   `pyproject.toml`.
+1. **RESOLVED (C2):** `CLAUDE.md` is the main instruction file; `AGENTS.md` points to it.
+2. **RESOLVED (C2):** Python 3.11 with a `venv` and `pyproject.toml` (setuptools, PyYAML).
 3. **OPEN QUESTION:** Authoritative sources (repository/model card, version, licence) for Pocket
    TTS Tamil, IndicF5 and Indic-Speak. Each must be verified before its adapter is written.
-4. **OPEN QUESTION:** Which ASR model to use for the optional local ASR comparison.
+4. **OPEN QUESTION:** Which ASR model to use for the optional local ASR comparison. None is
+   selected until its Tamil support has been evaluated (C2).
 5. **OPEN QUESTION:** Segmentation thresholds (maximum segment length, safe punctuation set).
 6. **OPEN QUESTION:** Thresholds for the duration/silence sanity checks.
 7. **OPEN QUESTION:** Definition of "material regression" for the frozen-regression gate.
@@ -178,13 +186,14 @@ Things the PRD does not specify. These must not be assumed in code.
    reduction (to be recalibrated after EXP-001).
 9. **OPEN QUESTION:** How "IndicF5 standard reference" is defined, and how TAM reference prompts
    are selected for EXP-001.
-10. **OPEN QUESTION:** Whether Tamil text in `data/text/` and in manifests (book prose, TAM
-    transcripts) may be committed to this public repository, given copyright and privacy. Whether
-    `speaker_id` values need pseudonymisation.
+10. **RESOLVED (C2):** Copyrighted book text, private TAM transcripts and identifying speaker
+    information are never committed; speaker IDs are pseudonymous. **OPEN QUESTION:** where the
+    real manifest (which contains transcripts) and the TEST/CHALLENGE text are kept, and what
+    committed form, if any, they take.
 11. **OPEN QUESTION:** Size of the TAM corpus, the number of speakers, and recording format
     (sample rate, channels).
-12. **OPEN QUESTION:** Output audio format for listeners, and the end-user playback target (the PRD
-    requires "offline-capable" without naming a device).
-13. **OPEN QUESTION:** The `.local/` folder in the repo (§6) and the `$HOME/...` roots (§7) are
-    both described. Which one is canonical? Both are git-ignored.
+12. **PARTLY RESOLVED (C2):** Evaluation audio is WAV. **OPEN QUESTION:** the delivery format for
+    listeners and the end-user playback target ("offline-capable" names no device).
+13. **RESOLVED (C2):** Local roots live under `$HOME`, outside the repository. `.local/` stays
+    git-ignored as a safety net.
 14. **OPEN QUESTION:** Project licence (deferred by the user).

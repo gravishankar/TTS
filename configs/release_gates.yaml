@@ -1,0 +1,29 @@
+# Release gates (PRD §16). Never combine these into one composite score.
+# "TBD" marks values the PRD does not define yet.
+gates:
+  completeness:
+    role: hard_gate
+    min_completeness: 1.0
+    max_missing_or_silent_segments: 0
+  frozen_regression:
+    role: hard_gate
+    max_regression: TBD
+  pronunciation_errors:
+    role: quality_target          # recalibrate after EXP-001
+    min_reduction_vs_baseline: 0.30
+    baseline: TBD
+  challenge_intelligibility:
+    role: human_authoritative
+    min: 0.90
+    scoring_unit: TBD
+  comfort:
+    role: accessibility
+    scale: [1, 5]
+    min_median: 4
+    not_below_baseline: true
+  real_time_factor:
+    role: deployment
+    target: report_only
+  peak_memory:
+    role: deployment
+    target: report_only

@@ -4,8 +4,23 @@ A reproducible pipeline that turns verified Tamil text into speech that elderly 
 impaired Tamil listeners can follow comfortably over long listening sessions. The pipeline is
 measured on frozen evaluation data.
 
-**Status:** planning. The requirements and project rules are in place; the TTS code is not
-written yet.
+**Status:** foundation. The repository has configuration loading, TAM manifest and split
+validation, and the Tamil text normalization and segmentation framework, all with unit tests.
+Speech model adapters and inference are not implemented yet.
+
+## Development (Python 3.11)
+
+```bash
+python3.11 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/python -m pytest
+
+.venv/bin/tamil-tts manifest validate tests/fixtures/manifests/valid.jsonl
+.venv/bin/tamil-tts splits check tests/fixtures/manifests/valid.jsonl
+.venv/bin/tamil-tts text segment --file tests/fixtures/text/smoke_original.txt --id TAM-001
+.venv/bin/tamil-tts config show      # values still marked TBD
+.venv/bin/tamil-tts env check        # local roots under $HOME (run on the Mac)
+```
 
 ## How the work is split
 

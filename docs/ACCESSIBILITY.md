@@ -62,9 +62,9 @@ for intelligibility, completeness or listening comfort (§4).
 
 Things the PRD does not specify. These must not be assumed.
 
-1. **OPEN QUESTION:** Whether the listening interface itself must be usable by visually impaired
-   reviewers (screen reader support, keyboard-only operation, large text, high contrast), and
-   which standard applies (e.g. WCAG level).
+1. **RESOLVED (C2):** The listening interface must be fully keyboard- and screen-reader
+   accessible. **OPEN QUESTION:** which conformance standard and level apply (e.g. WCAG 2.2 AA),
+   and whether large text and high contrast are also required.
 2. **OPEN QUESTION:** Who the listeners are, how many there are, and whether listener groups must
    include elderly and visually impaired people rather than only volunteers.
 3. **OPEN QUESTION:** How challenge intelligibility (≥90%) is scored: by word, by segment or by
@@ -78,4 +78,6 @@ Things the PRD does not specify. These must not be assumed.
    users.
 8. **OPEN QUESTION:** The rules for reading mixed Tamil-English text (read English as English,
    transliterate, or something else).
-9. **OPEN QUESTION:** Consent and privacy terms for TAM speakers and listener-study participants.
+9. **PARTLY RESOLVED (C2):** Recording permission is required before training or distribution
+   (manifest `permissions` field). **OPEN QUESTION:** the wording of the consent terms for TAM
+   speakers and listener-study participants.

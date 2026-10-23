@@ -1,0 +1,25 @@
+# Evaluation settings. "TBD" marks values the PRD does not define; code must not guess them.
+audio_format: wav
+
+smoke_set:
+  min_utterances: 12
+  max_utterances: 20
+
+split_targets:          # PRD §8 (approximate)
+  train: 0.70
+  validate: 0.10
+  test: 0.10
+  challenge: 0.10
+
+segmentation:
+  max_chars: TBD        # long-sentence clause-split threshold
+
+leakage:
+  near_duplicate_threshold: TBD
+
+sanity_checks:
+  duration: TBD
+  silence: TBD
+
+asr:
+  model: TBD            # not selected until its Tamil support has been evaluated
