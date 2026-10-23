@@ -1,7 +1,8 @@
 # Model Verification
 
 Status of the three evaluation candidates (PRD §4A, §11). Researched 2026-10-23 from Claude Code
-Cloud. **No model is verified for implementation yet.** Every adapter stays a placeholder that
+Cloud. Licences updated 2026-10-23 (C4) with the user's findings, each checked
+against what could be reached from the cloud. **No model is verified for implementation yet.** Every adapter stays a placeholder that
 reports `unverified` (`tamil-tts models status`) until the open checks below are closed on the
 local Mac.
 
@@ -22,13 +23,24 @@ was downloaded.
 | | Pocket TTS Tamil | IndicF5 | Indic-Speak |
 |---|---|---|---|
 | Official source | Engine: `kyutai-labs/pocket-tts` (Confirmed). Tamil weights: **community** model `Thanushttk/pocket-tts-multilingual`, listed in the official README (Confirmed) | `AI4Bharat/IndicF5` (GitHub) + `ai4bharat/IndicF5` (HF) (Confirmed) | Code: `Bodhan-AI/bodhan_genai` (`bodhan_genai.tts`) (Confirmed). Weights: `bodhan-ai/indic-speak` (HF) (Confirmed as default checkpoint) |
-| Licence | Code MIT (Confirmed). Tamil weights: **Not found**. Upstream README has a prohibited-use section, including cloning a voice without consent (Confirmed) | MIT (Reported, AIKosh listing). GitHub repo has **no LICENSE file** (Confirmed) | Code Apache-2.0 (Confirmed). Weights: Indic Open Model License v1.0, gated (Reported). Hosted multi-tenant APIs need prior written approval (Reported) |
+| Licence | Weights: **CC BY 4.0** (user finding; Reported). The card says the bundled Kyutai weights are used under CC-BY-4.0. The repo's own licence tag could not be read from the cloud. Engine code MIT (Confirmed). Upstream prohibited-use terms apply, including cloning a voice without explicit, lawful consent (Confirmed) | **MIT** (user finding; Reported). Consistent with AIKosh and community derivatives. GitHub repo has **no LICENSE file** (Confirmed). An HF discussion "confirming the MIT grant for commercial use" exists; its outcome is unread | Weights: **Indic Open Model License v1.0** (user finding; Reported from the model card). Gated. Derivatives must carry the same licence. Hosted third-party APIs need written approval. Llama 3.2 upstream terms may also apply. Code Apache-2.0 (Confirmed) |
 | Version | `pocket-tts` 4.0.1 on PyPI; repo `44cb63eaa414`. Tamil config pinned at HF commit `80c7f2835138…` (Confirmed) | No releases; repo `13f7c4d627cc` (Confirmed). HF revision: Not found | `bodhan_genai` 0.1.0, repo `62090c5e8f77` (Confirmed). Weights revision: Not found |
 | Tamil support | Yes, in the community 6-layer multilingual model (en, hi, mr, kn, ta, ml, te, code-mixing) (Confirmed). Not in the official Kyutai language list (Confirmed) | Yes, 1 of 11 languages (Confirmed) | Yes, `ta`. Production tier (Reported). Content-fidelity judge score 4.904 on 3,000 readings (Confirmed, package README) |
 | Reference audio | Voice prompt via `get_state_for_audio_prompt(path)` (WAV). No transcript needed. Duration not specified (Confirmed). Official cloning weights are gated on HF (Reported) | **Required**: reference WAV + its transcript per call (Confirmed). Length/format limits: Not found | **Not supported**. Fixed speakers selected by name (Reported: "does not support voice cloning"; package README shows `speaker=` only) |
 | Local inference | Python 3.10–3.14, PyTorch ≥ 2.5, CPU. `pip install pocket-tts` (Confirmed) | Python 3.10 (conda), `pip install git+https://github.com/ai4bharat/IndicF5.git`. Loads with `trust_remote_code=True` (Confirmed) | Python 3.12, vLLM backend (default) or `backend="hf"`. CUDA wheels by default; `--cpu` dev install exists. ~3.4–3.8B params (Confirmed / Reported) |
 | Apple Silicon | ~6× real time on a MacBook Air M4 CPU. No GPU speed-up observed on Apple Silicon. No MPS support mentioned (Confirmed) | Not documented officially. Community MLX port and ONNX export exist (Reported, unofficial). ONNX export "not realtime on M1 CPU" (Reported) | **Not documented**. Only CUDA is referenced. vLLM is CUDA-oriented. The HF backend on MPS/CPU is untested |
 | Inference interface | `TTSModel.load_model()` → `get_state_for_audio_prompt(voice)` → `generate_audio(state, text)` → 1-D torch tensor at `tts_model.sample_rate`. CLI: `pocket-tts generate --config hf://…/config.yaml@<sha> --voice v.wav --text …` (Confirmed for the official model; community model via `--config` per README) | `AutoModel.from_pretrained("ai4bharat/IndicF5", trust_remote_code=True)`, called with text, ref audio path and ref text. Returns int16 audio at 24 kHz (Confirmed, README) | `IndicTTSEngine(checkpoint).synthesize(text, speaker=..., style="")` → `TTSResult` (float32, 24 kHz, `.save(path)`, `rtf`, `duration_s`). Long-form: `ChunkedIndicStreamingTTS` (Confirmed, package README) |
+
+## Licence findings (C4)
+
+| Model | User finding | Check result | Still to confirm on the card |
+|---|---|---|---|
+| Pocket multilingual Tamil weights | CC BY 4.0 | Supported: the card states CC-BY-4.0 for the bundled Kyutai weights, and upstream Kyutai weights are CC-BY-4.0 | The repo's own `license:` tag and attribution wording |
+| IndicF5 | MIT | Consistent across secondary sources, but not read from the card itself | The `license:` field on `ai4bharat/IndicF5`, plus any voice-cloning terms of use |
+| Indic-Speak weights | Indic Open Model License v1.0 | Supported: search results quote it from the model card | Full licence text (commercial use, attribution, hosting) after accepting the gate |
+
+These are recorded as licence findings only. **Local model execution is not verified for any
+model**, and `verified` stays `false` in `configs/models.yaml`.
 
 ## Pocket TTS Tamil
 

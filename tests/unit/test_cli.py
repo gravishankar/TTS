@@ -41,7 +41,12 @@ def test_config_show(config_dir, capsys):
 
 
 def test_env_check_fails_clearly(monkeypatch, capsys):
-    for var in ("TAM_AUDIO_ROOT", "TAMIL_TTS_MODEL_ROOT", "TAMIL_TTS_CACHE_ROOT"):
+    for var in (
+        "TAM_AUDIO_ROOT",
+        "TAMIL_TTS_MODEL_ROOT",
+        "TAMIL_TTS_CACHE_ROOT",
+        "TAMIL_TTS_OUTPUT_ROOT",
+    ):
         monkeypatch.delenv(var, raising=False)
     assert main(["env", "check"]) == 2
     assert "TAM_AUDIO_ROOT is not set" in capsys.readouterr().err
@@ -51,3 +56,38 @@ def test_models_status(config_dir, capsys):
     assert main(["--config-dir", str(config_dir), "models", "status"]) == 0
     data = json.loads(capsys.readouterr().out)
     assert {v["availability"] for v in data.values()} == {"unverified"}
+
+
+def test_experiment_run_mock_smoke(fixtures, config_dir, tmp_path, monkeypatch, capsys):
+    manifest = fixtures / "manifests" / "valid.jsonl"
+    frozen = tmp_path / "frozen.json"
+    assert main(["splits", "freeze", str(manifest), "--out", str(frozen)]) == 0
+    monkeypatch.setenv("TAMIL_TTS_OUTPUT_ROOT", str(tmp_path / "out"))
+    monkeypatch.setenv("TAMIL_TTS_CACHE_ROOT", str(tmp_path / "cache"))
+    (tmp_path / "out").mkdir()
+    (tmp_path / "cache").mkdir()
+    experiments = config_dir.parent / "experiments"
+    args = [
+        "--config-dir",
+        str(config_dir),
+        "experiment",
+        "run",
+        "EXP-001",
+        "--smoke",
+        "--mock",
+        "--manifest",
+        str(manifest),
+        "--frozen",
+        str(frozen),
+        "--experiments-dir",
+        str(experiments),
+        "--run-id",
+        "cli-test",
+    ]
+    assert main(args) == 0
+    out = capsys.readouterr().out
+    assert "indic-speak: ran; 0/2 ok; completeness gate fail" in out  # silent mock audio
+    assert "pocket-tts-tamil: not run (reference prompt not selected yet (TBD))" in out
+    assert main(args) == 2  # same run id: never overwritten
+    assert main(["experiment", "status", "EXP-001"]) == 0
+    assert "cli-test: complete" in capsys.readouterr().out

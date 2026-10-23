@@ -62,8 +62,9 @@ Improve verified Tamil text → accessible offline speech, measured on frozen TA
 
 ## DECISIONS (user, C2)
 - CLAUDE.md is the main instruction file; AGENTS.md points here.
-- TAM recordings, models and caches live outside the repo under `$HOME`
-  (`TAM_AUDIO_ROOT`, `TAMIL_TTS_MODEL_ROOT`, `TAMIL_TTS_CACHE_ROOT`).
+- TAM recordings, models, caches and experiment runs live outside the repo under `$HOME`
+  (`TAM_AUDIO_ROOT`, `TAMIL_TTS_MODEL_ROOT`, `TAMIL_TTS_CACHE_ROOT`, `TAMIL_TTS_OUTPUT_ROOT`).
+  Experiment result files must stay free of Tamil text, transcripts and absolute paths.
 - Never commit copyrighted book text, private TAM transcripts or identifying speaker information.
   Speaker IDs are pseudonymous codes (`SPK-01`). Test fixtures use original text only.
 - Verify official model sources and licences before implementing any adapter. Record findings in

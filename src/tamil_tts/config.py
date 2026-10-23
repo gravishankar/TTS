@@ -22,6 +22,7 @@ ROOT_ENV_VARS = {
     "audio": "TAM_AUDIO_ROOT",
     "models": "TAMIL_TTS_MODEL_ROOT",
     "cache": "TAMIL_TTS_CACHE_ROOT",
+    "outputs": "TAMIL_TTS_OUTPUT_ROOT",  # experiment run outputs (audio + results)
 }
 
 
@@ -81,12 +82,13 @@ class LocalRoots:
     audio: Path | None
     models: Path | None
     cache: Path | None
+    outputs: Path | None
 
 
 def resolve_local_roots(
     env: Mapping[str, str] | None = None,
     *,
-    required: tuple[str, ...] = ("audio", "models", "cache"),
+    required: tuple[str, ...] = ("audio", "models", "cache", "outputs"),
     repo_root: Path | None = None,
     check_exists: bool = True,
 ) -> LocalRoots:

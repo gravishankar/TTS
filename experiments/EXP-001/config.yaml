@@ -1,0 +1,21 @@
+# EXP-001 — Frozen baseline (PRD §14, §21). No tuning.
+# The real manifest and frozen split record are private and stay on the Mac;
+# point to them with environment variables (or --manifest / --frozen).
+experiment: EXP-001
+manifest: ${TAM_MANIFEST}
+frozen_splits: ${TAM_FROZEN_SPLITS}
+splits: [test, challenge]
+smoke:
+  max_utterances: 20          # PRD §19: 12–20 utterance smoke set
+systems:
+  - id: pocket-tts-tamil
+    model: pocket-tts-tamil
+    reference: TBD            # Pocket needs a voice prompt; choice not made yet
+  - id: indicf5-standard-ref
+    model: indicf5
+    reference: TBD            # "standard reference" not defined yet (ARCHITECTURE Q9)
+  - id: indicf5-tam-ref
+    model: indicf5
+    reference: TBD            # selected TAM reference (TRAIN/VALIDATE entry_id) not chosen yet
+  - id: indic-speak
+    model: indic-speak        # no reference audio; speaker selection is a model option (TBD)

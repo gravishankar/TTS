@@ -1,7 +1,7 @@
 """`tamil-tts` command-line interface.
 
-Implemented: config, env, models, manifest, splits and text commands. Experiment, listening and
-evaluation commands (PRD §12) arrive with the experiment runner.
+Implemented: config, env, models, experiment (run, status), manifest, splits and text commands.
+Listening, eval report, compare and release-check (PRD §12) are not implemented yet.
 """
 
 from __future__ import annotations
@@ -22,10 +22,17 @@ from tamil_tts.config import (
     load_yaml,
     resolve_local_roots,
 )
+from tamil_tts.experiment import (
+    ExperimentError,
+    RunOptions,
+    load_experiment_config,
+    run_experiment,
+)
 from tamil_tts.frontend import Normalizer, SegmentationError, segment_text
 from tamil_tts.frontend.normalize import find_unexpanded_numbers
 from tamil_tts.manifest import Issue, load_manifest
-from tamil_tts.models import candidate_models
+from tamil_tts.models import ModelIdentity, candidate_models
+from tamil_tts.models.mock import MockTTSModel
 from tamil_tts.splits import check_frozen, check_leakage, freeze_splits, split_counts, split_shares
 
 
@@ -69,6 +76,62 @@ def cmd_models_status(args: argparse.Namespace) -> int:
         status = model.status()
         report[name] = {"availability": status.availability.value, "reason": status.reason}
     _print_json(report)
+    return 0
+
+
+def cmd_experiment_run(args: argparse.Namespace) -> int:
+    models_cfg = load_yaml(Path(args.config_dir) / "models.yaml")
+    eval_cfg = load_yaml(Path(args.config_dir) / "eval.yaml")
+    candidates = candidate_models(models_cfg)
+    config = load_experiment_config(
+        Path(args.experiments_dir) / args.experiment / "config.yaml", set(candidates)
+    )
+    if args.mock:
+
+        def factory(spec):
+            identity = ModelIdentity(f"mock:{spec.model}", "mock-0", license="test-only")
+            return MockTTSModel(identity=identity)
+    else:
+
+        def factory(spec):
+            return candidates[spec.model]
+
+    required = ("outputs",) if args.no_cache else ("outputs", "cache")
+    roots = resolve_local_roots(required=required)
+    summary = run_experiment(
+        config,
+        options=RunOptions(
+            smoke=args.smoke,
+            mock=args.mock,
+            use_cache=not args.no_cache,
+            run_id=args.run_id,
+            manifest=args.manifest,
+            frozen_splits=args.frozen,
+        ),
+        output_root=roots.outputs,
+        cache_root=roots.cache,
+        model_factory=factory,
+        eval_config=eval_cfg,
+    )
+    for system in summary.results["systems"]:
+        state = "ran" if system["ran"] else f"not run ({system['blocked_reason']})"
+        print(
+            f"{system['system_id']}: {state}; {system['segments_ok']}/"
+            f"{system['segments_total']} ok; completeness gate {system['gate_completeness']}"
+        )
+    print(f"results: {summary.run_dir}")
+    return 0
+
+
+def cmd_experiment_status(args: argparse.Namespace) -> int:
+    roots = resolve_local_roots(required=("outputs",))
+    base = roots.outputs / args.experiment
+    runs = sorted(p for p in base.iterdir() if p.is_dir()) if base.is_dir() else []
+    if not runs:
+        print(f"no runs for {args.experiment} under {base}")
+    for run in runs:
+        state = "complete" if (run / "results.json").is_file() else "incomplete"
+        print(f"{run.name}: {state}")
     return 0
 
 
@@ -155,6 +218,22 @@ def build_parser() -> argparse.ArgumentParser:
         func=cmd_models_status
     )
 
+    experiment = groups.add_parser("experiment", help="run experiments locally")
+    experiment_cmds = experiment.add_subparsers(dest="command", required=True)
+    run = experiment_cmds.add_parser("run", help="run an experiment (writes outside the repo)")
+    run.add_argument("experiment", help="e.g. EXP-001")
+    run.add_argument("--smoke", action="store_true", help="smoke subset only (PRD §19)")
+    run.add_argument("--mock", action="store_true", help="replace every model with a silent mock")
+    run.add_argument("--no-cache", action="store_true", help="always synthesize")
+    run.add_argument("--run-id", help="default: UTC timestamp")
+    run.add_argument("--manifest", type=Path, help="override config manifest path")
+    run.add_argument("--frozen", type=Path, help="override config frozen split record")
+    run.add_argument("--experiments-dir", default="experiments")
+    run.set_defaults(func=cmd_experiment_run)
+    status = experiment_cmds.add_parser("status", help="list runs of an experiment")
+    status.add_argument("experiment")
+    status.set_defaults(func=cmd_experiment_status)
+
     manifest = groups.add_parser("manifest", help="TAM manifest tools")
     manifest_cmds = manifest.add_subparsers(dest="command", required=True)
     validate = manifest_cmds.add_parser("validate", help="validate a manifest JSONL file")
@@ -192,7 +271,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)
-    except (ConfigError, SegmentationError, OSError, ValueError) as exc:
+    except (ConfigError, ExperimentError, SegmentationError, OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 

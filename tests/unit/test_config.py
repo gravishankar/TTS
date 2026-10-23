@@ -44,17 +44,18 @@ def test_missing_key_and_bad_files(tmp_path):
         load_yaml(bad)
 
 
-def _env(audio, models, cache):
+def _env(audio, models, cache, outputs):
     return {
         "TAM_AUDIO_ROOT": str(audio),
         "TAMIL_TTS_MODEL_ROOT": str(models),
         "TAMIL_TTS_CACHE_ROOT": str(cache),
+        "TAMIL_TTS_OUTPUT_ROOT": str(outputs),
     }
 
 
 def test_resolve_local_roots_ok(tmp_path):
     repo, home = tmp_path / "repo", tmp_path / "home"
-    dirs = [home / n for n in ("audio", "models", "cache")]
+    dirs = [home / n for n in ("audio", "models", "cache", "outputs")]
     for d in (repo, *dirs):
         d.mkdir(parents=True)
     roots = resolve_local_roots(_env(*dirs), repo_root=repo)

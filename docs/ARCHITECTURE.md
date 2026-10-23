@@ -116,11 +116,35 @@ missing segments → verify every segment produced audio → duration/silence sa
 local ASR comparison → write `metrics.json`, `errors.jsonl` → generate `REPORT.md`. Audio is never
 committed automatically.
 
+**Implemented in C4** (`src/tamil_tts/experiment/`, `src/tamil_tts/eval/`):
+- `tamil-tts experiment run EXP-xxx [--smoke] [--mock] [--no-cache] [--run-id ID]`.
+  `tamil-tts experiment status EXP-xxx` lists runs.
+- Order: load `experiments/EXP-xxx/config.yaml` → validate the private manifest (path from
+  `$TAM_MANIFEST` or `--manifest`) → require the frozen split record (`$TAM_FROZEN_SPLITS` or
+  `--frozen`) and abort on any frozen-split violation or text leakage → select splits (smoke:
+  `smoke.ids` or the first `smoke.max_utterances`) → segment → per system: check availability and
+  resolve the reference → synthesize through the cache → check each segment's audio → write
+  results.
+- References: `TBD` blocks the system with a reason. `entry_id` takes a TRAIN/VALIDATE recording
+  and its transcript from the manifest; TEST/CHALLENGE references are rejected.
+- Blocked or unavailable systems are recorded as `not_run` with the reason; the run continues.
+- Output: a new directory `$TAMIL_TTS_OUTPUT_ROOT/EXP-xxx/<run-id>/` holding `audio/`,
+  `segments.jsonl`, `errors.jsonl`, `results.json` and `REPORT.md`. An existing run directory is
+  never reused, and an output root inside the repository is refused.
+- Result files contain ids, checksums, counts and timings only, never Tamil text, transcripts or
+  absolute paths, so they can be reviewed and copied into `experiments/EXP-xxx/`. PRD §13 names
+  `metrics.json`; the runner writes `results.json` as listed in §15.
+- `--mock` replaces every model with the silent mock and marks the report "MOCK RUN". Mock
+  audio is silent, so it always fails the completeness gate.
+
 ### 3.4 Evaluation and reporting (§15, §16)
 - Per experiment: `PLAN.md`, `config.yaml`, `results.json`, `errors.jsonl`,
   `listener_results.jsonl` (when human evaluation exists) and `REPORT.md`.
 - Metrics are reported separately, never as a composite score; see the gates in §16.
 - Synthesis and ASR are cached by model/config/text checksum (§19).
+- Completeness (`eval/completeness.py`): the audio must exist, be a readable PCM or float WAV,
+  contain samples, and not be digital silence. Duration and near-silence checks wait for TBD
+  thresholds.
 
 ### 3.5 Human listening interface (§17)
 A local-only browser app launched with `tamil-tts listen`. See [ACCESSIBILITY.md](ACCESSIBILITY.md).
@@ -139,7 +163,9 @@ Manifest line (`data/manifests/tam.jsonl`):
 {"id":"TAM-001","split":"train","text":"<Tamil>","audio":"${TAM_AUDIO_ROOT}/TAM-001.wav","speaker_id":"SPK-01","tags":["literary","PHON-LIQUID"],"quality":"accepted"}
 ```
 
-Local environment variables: `TAM_AUDIO_ROOT`, `TAMIL_TTS_MODEL_ROOT`, `TAMIL_TTS_CACHE_ROOT`.
+Local environment variables: `TAM_AUDIO_ROOT`, `TAMIL_TTS_MODEL_ROOT`, `TAMIL_TTS_CACHE_ROOT`,
+`TAMIL_TTS_OUTPUT_ROOT` (experiment runs; added in C4). The private manifest and frozen split
+record are found through `TAM_MANIFEST` and `TAM_FROZEN_SPLITS`.
 These point outside the repository under `$HOME`; `tamil-tts env check` refuses roots inside it.
 
 Implemented manifest rules (`src/tamil_tts/manifest.py`): `id` is `TAM-NNN`; `split` is one of the

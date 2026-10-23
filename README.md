@@ -6,8 +6,8 @@ measured on frozen evaluation data.
 
 **Status:** foundation. The repository has configuration loading, TAM manifest and split
 validation, the Tamil text normalization and segmentation framework, the common TTS model
-interface with a silent mock, and the synthesis cache, all with unit tests. Real model adapters
-and inference are not implemented yet; every candidate reports `unverified`.
+interface with a silent mock, the synthesis cache and the EXP-001 experiment runner, all with unit
+tests. Real model adapters are not implemented yet; every candidate reports `unverified`.
 
 ## Development (Python 3.11)
 
@@ -22,6 +22,17 @@ python3.11 -m venv .venv
 .venv/bin/tamil-tts config show      # values still marked TBD
 .venv/bin/tamil-tts models status    # candidate availability
 .venv/bin/tamil-tts env check        # local roots under $HOME (run on the Mac)
+```
+
+EXP-001 smoke test with the silent mock (writes only to the folders you point at):
+
+```bash
+mkdir -p ~/tamil-tts-runs ~/tamil-tts-cache
+export TAMIL_TTS_OUTPUT_ROOT=~/tamil-tts-runs TAMIL_TTS_CACHE_ROOT=~/tamil-tts-cache
+export TAM_MANIFEST=tests/fixtures/manifests/valid.jsonl
+export TAM_FROZEN_SPLITS=~/tamil-tts-runs/fixture_frozen_splits.json
+.venv/bin/tamil-tts splits freeze "$TAM_MANIFEST" --out "$TAM_FROZEN_SPLITS"
+.venv/bin/tamil-tts experiment run EXP-001 --smoke --mock
 ```
 
 ## How the work is split
