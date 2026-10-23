@@ -66,7 +66,10 @@ Improve verified Tamil text → accessible offline speech, measured on frozen TA
   (`TAM_AUDIO_ROOT`, `TAMIL_TTS_MODEL_ROOT`, `TAMIL_TTS_CACHE_ROOT`).
 - Never commit copyrighted book text, private TAM transcripts or identifying speaker information.
   Speaker IDs are pseudonymous codes (`SPK-01`). Test fixtures use original text only.
-- Verify official model sources and licences before implementing any adapter.
+- Verify official model sources and licences before implementing any adapter. Record findings in
+  `docs/MODEL_VERIFICATION.md`; keep `verified: false` in `configs/models.yaml` until confirmed.
+- The real TAM manifest and all real TAM text stay private on the Mac. Git holds only the schema
+  and fictional fixtures (C3).
 - Undefined evaluation thresholds stay `TBD` in `configs/`; code must refuse to use them.
 - The listening interface must be keyboard- and screen-reader accessible.
 - Python 3.11 is the development target. Evaluation audio is WAV.

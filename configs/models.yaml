@@ -1,22 +1,29 @@
-# Evaluation candidates (PRD §4A). "TBD" = not yet verified.
-# No adapter may be implemented until source, license and interface are verified
-# against official documentation (CLAUDE.md). Weights live under $TAMIL_TTS_MODEL_ROOT.
+# Evaluation candidates (PRD §4A). Findings: docs/MODEL_VERIFICATION.md.
+# "TBD" = not confirmed from the official source. `verified` stays false until the
+# local-Mac checklist in MODEL_VERIFICATION.md is complete; only then may an adapter
+# be written. Weights live under $TAMIL_TTS_MODEL_ROOT, never in the repository.
 models:
   pocket-tts-tamil:
     role: deployment-efficiency benchmark
-    source: TBD
-    license: TBD
-    version: TBD
+    source: https://github.com/kyutai-labs/pocket-tts
+    weights: hf://Thanushttk/pocket-tts-multilingual/config.yaml@80c7f2835138c62750d76a93d4333c5c5bb6a754
+    license: TBD                 # engine code MIT; community Tamil weights licence not found
+    version: TBD                 # PyPI pocket-tts 4.0.1 seen 2026-10-23; pin after local install
+    reference_audio: voice prompt (audio only)
     verified: false
   indicf5:
     role: adaptation laboratory (reference-audio conditioning)
-    source: TBD
-    license: TBD
-    version: TBD
+    source: https://github.com/AI4Bharat/IndicF5
+    weights: ai4bharat/IndicF5
+    license: TBD                 # MIT reported secondhand; no LICENSE file in GitHub repo
+    version: TBD                 # GitHub 13f7c4d627cc; HF revision not pinned
+    reference_audio: required (audio + transcript)
     verified: false
   indic-speak:
     role: audiobook-quality / long-form benchmark
-    source: TBD
-    license: TBD
-    version: TBD
+    source: https://github.com/Bodhan-AI/bodhan_genai
+    weights: bodhan-ai/indic-speak
+    license: TBD                 # code Apache-2.0; weights Indic Open Model License v1.0 (reported, gated)
+    version: TBD                 # bodhan_genai 0.1.0 (62090c5e8f77); weights revision not pinned
+    reference_audio: not supported (fixed speakers)
     verified: false

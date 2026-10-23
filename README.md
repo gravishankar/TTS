@@ -5,8 +5,9 @@ impaired Tamil listeners can follow comfortably over long listening sessions. Th
 measured on frozen evaluation data.
 
 **Status:** foundation. The repository has configuration loading, TAM manifest and split
-validation, and the Tamil text normalization and segmentation framework, all with unit tests.
-Speech model adapters and inference are not implemented yet.
+validation, the Tamil text normalization and segmentation framework, the common TTS model
+interface with a silent mock, and the synthesis cache, all with unit tests. Real model adapters
+and inference are not implemented yet; every candidate reports `unverified`.
 
 ## Development (Python 3.11)
 
@@ -19,6 +20,7 @@ python3.11 -m venv .venv
 .venv/bin/tamil-tts splits check tests/fixtures/manifests/valid.jsonl
 .venv/bin/tamil-tts text segment --file tests/fixtures/text/smoke_original.txt --id TAM-001
 .venv/bin/tamil-tts config show      # values still marked TBD
+.venv/bin/tamil-tts models status    # candidate availability
 .venv/bin/tamil-tts env check        # local roots under $HOME (run on the Mac)
 ```
 
@@ -48,12 +50,14 @@ No model is fine-tuned before the baseline evaluation (EXP-001 to EXP-003) is co
 - [docs/PRD.md](docs/PRD.md): product requirements (source of truth)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): system architecture and planned layout
 - [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md): accessibility requirements and evaluation
+- [docs/MODEL_VERIFICATION.md](docs/MODEL_VERIFICATION.md): official sources, licences and status of each candidate model
 - [CLAUDE.md](CLAUDE.md): rules for coding agents ([AGENTS.md](AGENTS.md) points to it)
 
 ## Data safety
 
-- TAM recordings stay on the user's Mac. Committed manifests reference them through environment
-  variables such as `${TAM_AUDIO_ROOT}`, never personal paths.
+- TAM recordings, the real TAM manifest and all real TAM text stay on the user's Mac. Git holds
+  only the manifest schema and fictional test fixtures. Manifests reference audio through
+  environment variables such as `${TAM_AUDIO_ROOT}`, never personal paths.
 - `.gitignore` excludes audio, model files, checkpoints, caches, local data and credentials.
 - TEST and CHALLENGE splits are never used for training.
 

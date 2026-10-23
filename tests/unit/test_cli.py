@@ -45,3 +45,9 @@ def test_env_check_fails_clearly(monkeypatch, capsys):
         monkeypatch.delenv(var, raising=False)
     assert main(["env", "check"]) == 2
     assert "TAM_AUDIO_ROOT is not set" in capsys.readouterr().err
+
+
+def test_models_status(config_dir, capsys):
+    assert main(["--config-dir", str(config_dir), "models", "status"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert {v["availability"] for v in data.values()} == {"unverified"}

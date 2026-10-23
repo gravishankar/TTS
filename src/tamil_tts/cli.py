@@ -1,6 +1,6 @@
 """`tamil-tts` command-line interface.
 
-Implemented: config, env, manifest, splits and text commands. Experiment, listening and
+Implemented: config, env, models, manifest, splits and text commands. Experiment, listening and
 evaluation commands (PRD §12) arrive with the experiment runner.
 """
 
@@ -25,6 +25,7 @@ from tamil_tts.config import (
 from tamil_tts.frontend import Normalizer, SegmentationError, segment_text
 from tamil_tts.frontend.normalize import find_unexpanded_numbers
 from tamil_tts.manifest import Issue, load_manifest
+from tamil_tts.models import candidate_models
 from tamil_tts.splits import check_frozen, check_leakage, freeze_splits, split_counts, split_shares
 
 
@@ -58,6 +59,16 @@ def cmd_config_show(args: argparse.Namespace) -> int:
 def cmd_env_check(args: argparse.Namespace) -> int:
     roots = resolve_local_roots()
     _print_json({k: str(v) for k, v in asdict(roots).items()})
+    return 0
+
+
+def cmd_models_status(args: argparse.Namespace) -> int:
+    models_cfg = load_yaml(Path(args.config_dir) / "models.yaml")
+    report = {}
+    for name, model in candidate_models(models_cfg).items():
+        status = model.status()
+        report[name] = {"availability": status.availability.value, "reason": status.reason}
+    _print_json(report)
     return 0
 
 
@@ -137,6 +148,12 @@ def build_parser() -> argparse.ArgumentParser:
     env = groups.add_parser("env", help="check local data/model/cache roots")
     env_cmds = env.add_subparsers(dest="command", required=True)
     env_cmds.add_parser("check", help="verify TAM_AUDIO_ROOT etc.").set_defaults(func=cmd_env_check)
+
+    models = groups.add_parser("models", help="TTS model candidates")
+    models_cmds = models.add_subparsers(dest="command", required=True)
+    models_cmds.add_parser("status", help="availability of each candidate").set_defaults(
+        func=cmd_models_status
+    )
 
     manifest = groups.add_parser("manifest", help="TAM manifest tools")
     manifest_cmds = manifest.add_subparsers(dest="command", required=True)

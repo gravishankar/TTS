@@ -77,6 +77,27 @@ class TTSModel(Protocol):
   has been verified. Indic-Speak may report unavailable/unsupported.
 - Cloud tests use mocks/stubs; `status()` lets code run without pretending a model exists.
 
+**Implemented in C3** (`src/tamil_tts/models/`):
+- One deliberate change from the §11 sketch: `synthesize` takes a typed `SynthesisRequest`
+  (segment id, normalized text, `.wav` output path, optional `ReferenceAudio` with transcript and
+  checksum) instead of `(text, output_path, **opts)`. This gives every adapter, the cache and the
+  runner one validated shape. Model options live in the adapter's read-only `config`, so they are
+  part of the cache key.
+- `BaseTTSModel` validates requests, refuses to overwrite an existing output (§20), times the
+  call, and turns failures into `SynthesisError` codes: `unavailable`, `invalid_request`,
+  `unsupported_reference`, `runtime_error`, `incomplete_output`. It never raises.
+- `MockTTSModel` writes digital silence labelled `mock-silence`, so its output can never pass
+  for speech. `UnavailableModel` is the placeholder for every candidate until it is verified
+  ([MODEL_VERIFICATION.md](MODEL_VERIFICATION.md)).
+
+### 3.2a Synthesis cache (§13, §19)
+`src/tamil_tts/cache.py`. The key is the sha256 of canonical JSON over model id + version,
+model config, normalized text, and the reference audio sha256 + transcript. Segment id and output
+path are not part of the key. Entries live under `$TAMIL_TTS_CACHE_ROOT/synthesis/`; the cache
+refuses a root inside the repository. Audio is copied atomically and `meta.json` is written last.
+An entry with missing metadata or mismatched audio checksum counts as incomplete: it is deleted
+and re-synthesized. Failed synthesis is never cached.
+
 ### 3.3 Local experiment runner (§12, §13)
 The CLI is the stable interface:
 
@@ -175,8 +196,9 @@ Things the PRD does not specify. These must not be assumed in code.
 
 1. **RESOLVED (C2):** `CLAUDE.md` is the main instruction file; `AGENTS.md` points to it.
 2. **RESOLVED (C2):** Python 3.11 with a `venv` and `pyproject.toml` (setuptools, PyYAML).
-3. **OPEN QUESTION:** Authoritative sources (repository/model card, version, licence) for Pocket
-   TTS Tamil, IndicF5 and Indic-Speak. Each must be verified before its adapter is written.
+3. **PARTLY RESOLVED (C3):** Sources researched in [MODEL_VERIFICATION.md](MODEL_VERIFICATION.md).
+   **OPEN QUESTION:** Licences, pinned revisions and local feasibility still need confirming on
+   the Mac. No candidate is `verified` yet.
 4. **OPEN QUESTION:** Which ASR model to use for the optional local ASR comparison. None is
    selected until its Tamil support has been evaluated (C2).
 5. **OPEN QUESTION:** Segmentation thresholds (maximum segment length, safe punctuation set).
@@ -197,3 +219,6 @@ Things the PRD does not specify. These must not be assumed in code.
 13. **RESOLVED (C2):** Local roots live under `$HOME`, outside the repository. `.local/` stays
     git-ignored as a safety net.
 14. **OPEN QUESTION:** Project licence (deferred by the user).
+15. **OPEN QUESTION:** The candidates need different Python versions (IndicF5 3.10, Indic-Speak
+    3.12, Pocket 3.10–3.14). Should real adapters run each model in its own local environment, for
+    example as a subprocess, instead of importing it into the 3.11 project environment?
