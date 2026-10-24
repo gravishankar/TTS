@@ -42,8 +42,21 @@ EXPORT_FIELDS = (
     "ratings",
     "error_categories",
     "problem_word_indices",
+    "order_seed",
+    "presentation_position",
+    "revision",
     "submitted_at",
 )
+MODE_TITLES = {
+    "blind": "Blind listening (model identity and text hidden while rating)",
+    "text": "Text-assisted verification (Tamil reference text visible)",
+}
+INTERPRETATION = {
+    "perceived_intelligibility": "Blind perceived intelligibility is NOT evidence that every "
+    "word was spoken. Only text-assisted completeness judgments address missing words.",
+    "automatic_checks": "Automatic checks only show that audio exists and is not silent. They "
+    "are machine checks, reported separately from human judgments.",
+}
 
 
 class ExportError(Exception):
@@ -68,9 +81,7 @@ def collect(
     return kept, excluded
 
 
-def summarize(
-    records: list[dict[str, Any]], excluded: Mapping[str, int], results: Mapping[str, Any]
-) -> dict[str, Any]:
+def _human(records: list[dict[str, Any]]) -> dict[str, Any]:
     systems: dict[str, dict[str, Any]] = defaultdict(
         lambda: {"ratings": defaultdict(Counter), "comfort": [], "categories": Counter()}
     )
@@ -80,22 +91,28 @@ def summarize(
             if name == "comfort":
                 data["comfort"].append(value)
             else:
-                data["ratings"][f"{record['mode']}.{name}"][str(value)] += 1
+                data["ratings"][name][str(value)] += 1
         data["categories"].update(record["error_categories"])
-
     human = {}
     for system_id, data in sorted(systems.items()):
         comfort = data["comfort"]
-        human[system_id] = {
+        entry: dict[str, Any] = {
             "judgments": {k: dict(sorted(v.items())) for k, v in sorted(data["ratings"].items())},
-            "comfort": {
-                "n": len(comfort),
-                "median": statistics.median(comfort) if comfort else None,
-                "distribution": dict(sorted(Counter(comfort).items())),
-            },
             "error_categories": dict(sorted(data["categories"].items())),
         }
+        if comfort:
+            entry["comfort"] = {
+                "n": len(comfort),
+                "median": statistics.median(comfort),
+                "distribution": dict(sorted(Counter(comfort).items())),
+            }
+        human[system_id] = entry
+    return human
 
+
+def summarize(
+    records: list[dict[str, Any]], excluded: Mapping[str, int], results: Mapping[str, Any]
+) -> dict[str, Any]:
     automatic = {
         s["system_id"]: {
             "ran": s.get("ran"),
@@ -115,13 +132,17 @@ def summarize(
         "records": len(records),
         "excluded": dict(excluded),
         "automatic_checks": automatic,
-        "human_judgments": human,
+        "human_judgments": {
+            mode: _human([r for r in records if r["mode"] == mode]) for mode in MODE_TITLES
+        },
+        "interpretation": INTERPRETATION,
         "targets": {
             "comfort": "PRD provisional target: median >= 4/5 and not below baseline. "
             "Not evaluated: no baseline yet.",
             "challenge_intelligibility": "PRD provisional target: >= 90%. Not evaluated: "
             "scoring unit is TBD.",
-            "completeness": "Human 'all words spoken' judgments are reported, not gated.",
+            "completeness": "Text-assisted 'all words spoken' judgments are reported, not gated.",
+            "naturalness": "Not collected: scale is TBD.",
         },
     }
 
@@ -136,8 +157,6 @@ def render(summary: Mapping[str, Any]) -> str:
         "",
         "## Automatic checks (machine)",
         "",
-        "Audio present and not silent. These checks cannot hear missing words or mispronunciation.",
-        "",
         "| System | Ran | OK / total | Silent | Errors | Completeness gate |",
         "|---|---|---|---|---|---|",
     ]
@@ -148,23 +167,29 @@ def render(summary: Mapping[str, Any]) -> str:
             f"{a['segments_error'] if a['segments_error'] is not None else '–'} | "
             f"{a['gate_completeness']} |"
         )
-    lines += ["", "## Human judgments (listeners)", ""]
-    if not summary["human_judgments"]:
-        lines.append("No ratings yet.")
-    for system_id, h in summary["human_judgments"].items():
-        lines += [f"### {system_id}", ""]
-        for name, counts in h["judgments"].items():
-            lines.append(f"- {name}: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
-        c = h["comfort"]
-        lines.append(
-            f"- comfort: n {c['n']}, median {c['median']}, distribution {c['distribution']}"
-        )
-        if h["error_categories"]:
-            lines.append(
-                "- error categories: "
-                + ", ".join(f"{k} {v}" for k, v in h["error_categories"].items())
-            )
-        lines.append("")
+    lines += ["", f"_{summary['interpretation']['automatic_checks']}_"]
+    for mode, title in MODE_TITLES.items():
+        lines += ["", f"## Human judgments — {title}", ""]
+        if mode == "blind":
+            lines += [f"_{summary['interpretation']['perceived_intelligibility']}_", ""]
+        judged = summary["human_judgments"][mode]
+        if not judged:
+            lines += ["No ratings yet.", ""]
+        for system_id, h in judged.items():
+            lines += [f"### {system_id}", ""]
+            for name, counts in h["judgments"].items():
+                lines.append(f"- {name}: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
+            if "comfort" in h:
+                c = h["comfort"]
+                lines.append(
+                    f"- comfort: n {c['n']}, median {c['median']}, distribution {c['distribution']}"
+                )
+            if h["error_categories"]:
+                lines.append(
+                    "- error categories: "
+                    + ", ".join(f"{k} {v}" for k, v in h["error_categories"].items())
+                )
+            lines.append("")
     lines += ["## Targets", ""]
     lines += [f"- **{k}**: {v}" for k, v in summary["targets"].items()]
     lines += [

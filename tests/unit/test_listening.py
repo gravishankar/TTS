@@ -15,9 +15,9 @@ from tamil_tts.listening.schema import public_criteria, validate_submission
 from tamil_tts.listening.store import SessionError, open_session
 
 STATIC = Path(__file__).resolve().parents[2] / "src" / "tamil_tts" / "listening" / "static"
-BLIND_OK = {"ratings": {"intelligibility": "yes", "comfort": 4}}
+BLIND_OK = {"ratings": {"perceived_intelligibility": "yes", "comfort": 4}}
 TEXT_OK = {
-    "ratings": {"pronunciation": "errors", "completeness": "yes", "comfort": 3},
+    "ratings": {"pronunciation": "errors", "completeness": "yes", "intelligibility": "yes"},
     "error_categories": ["PHON-LIQUID"],
     "problem_word_indices": [1],
     "notes": "word 2 unclear",
@@ -91,15 +91,21 @@ def test_valid_submissions(run):
 @pytest.mark.parametrize(
     ("change", "message"),
     [
-        ({"ratings": {"intelligibility": "yes"}}, "'comfort' is required"),
-        ({"ratings": {"intelligibility": "maybe", "comfort": 4}}, "must be one of"),
-        ({"ratings": {"intelligibility": "yes", "comfort": 0}}, "integer from 1 to 5"),
-        ({"ratings": {"intelligibility": "yes", "comfort": 6}}, "integer from 1 to 5"),
-        ({"ratings": {"intelligibility": "yes", "comfort": "4"}}, "integer from 1 to 5"),
-        ({"ratings": {"intelligibility": "yes", "comfort": True}}, "integer from 1 to 5"),
-        ({"ratings": {"intelligibility": "yes", "comfort": 4, "naturalness": 3}}, "TBD"),
+        ({"ratings": {"perceived_intelligibility": "yes"}}, "'comfort' is required"),
+        ({"ratings": {"perceived_intelligibility": "maybe", "comfort": 4}}, "must be one of"),
+        ({"ratings": {"perceived_intelligibility": "yes", "comfort": 0}}, "integer from 1 to 5"),
+        ({"ratings": {"perceived_intelligibility": "yes", "comfort": 6}}, "integer from 1 to 5"),
+        ({"ratings": {"perceived_intelligibility": "yes", "comfort": "4"}}, "integer from 1 to 5"),
+        ({"ratings": {"perceived_intelligibility": "yes", "comfort": True}}, "integer from 1 to 5"),
+        ({"ratings": {"perceived_intelligibility": "yes", "comfort": 4, "naturalness": 3}}, "TBD"),
         (
-            {"ratings": {"intelligibility": "yes", "comfort": 4, "pronunciation": "correct"}},
+            {
+                "ratings": {
+                    "perceived_intelligibility": "yes",
+                    "comfort": 4,
+                    "pronunciation": "correct",
+                }
+            },
             "not collected in blind mode",
         ),
         ({**BLIND_OK, "problem_word_indices": [0]}, "need visible text"),
@@ -149,9 +155,17 @@ def test_unrateable_items_rejected(run, tmp_path):
 
 
 def test_tbd_criteria_marked_for_page():
-    names = {c["name"]: c for c in public_criteria(scales(), "text")}
-    assert names["naturalness"]["type"] == "TBD" and names["naturalness"]["required"] is False
-    assert names["comfort"]["min"] == 1 and names["comfort"]["max"] == 5
+    blind = {c["name"]: c for c in public_criteria(scales(), "blind")}
+    text = {c["name"]: c for c in public_criteria(scales(), "text")}
+    assert set(blind) == {"perceived_intelligibility", "naturalness", "comfort"}
+    assert set(text) == {
+        "pronunciation",
+        "completeness",
+        "intelligibility",
+        "pronunciation_severity",
+    }
+    assert blind["naturalness"]["type"] == "TBD" and blind["naturalness"]["required"] is False
+    assert blind["comfort"]["min"] == 1 and blind["comfort"]["max"] == 5
 
 
 # --- sessions ----------------------------------------------------------------------
@@ -164,17 +178,90 @@ def _open(run_dir, **kwargs):
 
 def test_save_and_resume(run):
     run_dir, _, items = run
-    session, resumed = _open(run_dir, session_id="s1")
+    text_items = _text_items(run)
+    session, resumed = _open(run_dir, session_id="s1", mode="text")
     assert not resumed
-    item = items["tone-a/TAM-009-S01"]
-    session.append(item, BLIND_OK)
-    session.append(item, {"ratings": {"intelligibility": "no", "comfort": 2}})
-    again, resumed = _open(run_dir, session_id="s1")
-    assert resumed and len(again.records()) == 2  # append-only
-    assert again.latest()[item.key]["ratings"] == {"intelligibility": "no", "comfort": 2}
+    item = text_items["tone-a/TAM-009-S01"]
+    session.append(item, TEXT_OK, position=3)
+    changed = {**TEXT_OK, "ratings": {**TEXT_OK["ratings"], "completeness": "no"}}
+    session.append(item, changed, position=3)
+    again, resumed = _open(run_dir, session_id="s1", mode="text")
+    assert resumed and len(again.records()) == 2  # append-only: the original is kept
+    assert again.records()[0]["ratings"]["completeness"] == "yes"
+    assert again.latest()[item.key]["ratings"]["completeness"] == "no"
+    assert [r["revision"] for r in again.records()] == [1, 2]
     meta_before = (again.directory / "session.json").read_text()
-    _open(run_dir, session_id="s1")
+    _open(run_dir, session_id="s1", mode="text")
     assert (again.directory / "session.json").read_text() == meta_before
+
+
+def test_blind_rating_is_final(run):
+    run_dir, _, items = run
+    session, _ = _open(run_dir, session_id="bf")
+    item = items["tone-a/TAM-009-S01"]
+    session.append(item, BLIND_OK, position=1)
+    with pytest.raises(SessionError, match="final"):
+        session.append(item, BLIND_OK, position=1)
+    assert len(session.records()) == 1
+
+
+def test_seed_is_random_recorded_and_reproducible(run):
+    run_dir, _, items = run
+    one, _ = _open(run_dir, session_id="seed-1")
+    two, _ = _open(run_dir, session_id="seed-2", reviewer_id="REV-02")
+    assert len(one.meta["order_seed"]) == 32 and one.meta["order_seed"] != two.meta["order_seed"]
+    values = list(items.values())
+    first = ordered(values, one.meta["order_seed"])
+    assert first == ordered(list(reversed(values)), one.meta["order_seed"])  # reproducible
+    record = one.append(items["tone-a/TAM-009-S01"], BLIND_OK, position=4)
+    assert record["order_seed"] == one.meta["order_seed"] and record["presentation_position"] == 4
+    orders = {tuple(i.key for i in ordered(values, f"seed{n}")) for n in range(5)}
+    assert len(orders) > 1  # the seed changes the presentation order
+
+
+def test_mode_change_preserves_ratings_and_blocks_late_blind(run):
+    run_dir, results, items = run
+    text_items = _text_items(run)
+    key = "tone-a/TAM-009-S01"
+    blind, _ = _open(run_dir, session_id="mc-blind")
+    blind.append(items[key], BLIND_OK, position=1)
+    blind_before = blind.ratings_path.read_text()
+    text, _ = _open(run_dir, session_id="mc-text", mode="text")
+    text.append(text_items[key], TEXT_OK, position=1)
+    assert blind.ratings_path.read_text() == blind_before  # untouched by the text session
+    with pytest.raises(SessionError, match="seen the text"):
+        _open(run_dir, session_id="mc-blind")  # resuming blind after seeing text
+    with pytest.raises(SessionError, match="seen the text"):
+        _open(run_dir, session_id="mc-blind-2")  # or starting a new blind session
+    _, summary = export(run_dir, list(items.values()), results, "mc")
+    assert summary["records"] == 2
+    assert set(summary["human_judgments"]["blind"]["tone-a"]["judgments"]) == {
+        "perceived_intelligibility"
+    }
+    assert "completeness" in summary["human_judgments"]["text"]["tone-a"]["judgments"]
+
+
+def test_mock_audio_cannot_enter_a_session(tmp_path):
+    from tamil_tts.listening.items import RunLoadError, for_session
+
+    mock_dir = tmp_path / "mock"
+    mock_dir.mkdir()
+    results, items = load_run(make_run(mock_dir, mock=True))
+    with pytest.raises(RunLoadError, match="mock run"):
+        for_session(results, items)
+    mixed_dir = tmp_path / "mixed"
+    mixed_dir.mkdir()
+    results, items = load_run(make_run(mixed_dir, with_mock_system=True))
+    kept, excluded = for_session(results, items)
+    assert excluded == 2 and all(i.audio_kind is not AudioKind.MOCK for i in kept)
+    session, _ = open_session(
+        mixed_dir, experiment="EXP-001", run_id="r1", reviewer_id="REV-01", mode="blind"
+    )
+    with pytest.raises(ValueError, match="mock audio cannot enter"):
+        ListeningApp(results=results, items=items, session=session, scales=scales())
+    mock_item = next(i for i in items if i.audio_kind is AudioKind.MOCK)
+    with pytest.raises(SessionError, match="only real audio"):
+        session.append(mock_item, BLIND_OK, position=1)
 
 
 def test_session_rules(run):
@@ -197,9 +284,9 @@ def test_export_privacy_and_separation(run, tmp_path):
     run_dir, results, items = run
     text_items = _text_items(run)
     blind, _ = _open(run_dir, session_id="b1")
-    blind.append(items["tone-a/TAM-009-S01"], {**BLIND_OK, "notes": "private remark"})
+    blind.append(items["tone-a/TAM-009-S01"], {**BLIND_OK, "notes": "private remark"}, 1)
     text, _ = _open(run_dir, session_id="t1", reviewer_id="REV-02", mode="text")
-    text.append(text_items["tone-a/TAM-010-S01"], {**TEXT_OK, "notes": "வாழைப்பழம் /Users/x"})
+    text.append(text_items["tone-a/TAM-010-S01"], {**TEXT_OK, "notes": "வாழைப்பழம் /Users/x"}, 2)
 
     out, summary = export(run_dir, list(items.values()), results, "e1")
     for name in ("listener_results.jsonl", "listening_summary.json", "LISTENING_REPORT.md"):
@@ -211,9 +298,13 @@ def test_export_privacy_and_separation(run, tmp_path):
     assert {r["reviewer_id"] for r in records} == {"REV-01", "REV-02"}
     assert all("notes" not in r for r in records)
     assert set(summary) >= {"automatic_checks", "human_judgments"}
-    assert summary["human_judgments"]["tone-a"]["comfort"]["n"] == 2
+    assert summary["human_judgments"]["blind"]["tone-a"]["comfort"]["n"] == 1
+    assert "comfort" not in summary["human_judgments"]["text"]["tone-a"]
+    assert all({"order_seed", "presentation_position", "revision"} <= set(r) for r in records)
     report = (out / "LISTENING_REPORT.md").read_text()
-    assert report.index("Automatic checks") < report.index("Human judgments")
+    assert report.index("Automatic checks") < report.index("Human judgments — Blind")
+    assert report.index("Human judgments — Blind") < report.index("Human judgments — Text")
+    assert "NOT evidence that every word was spoken" in report
 
 
 def test_export_never_overwrites(run):
@@ -227,7 +318,7 @@ def test_export_excludes_stale_and_mock_records(run):
     run_dir, results, items = run
     session, _ = _open(run_dir, session_id="s3")
     item = items["tone-a/TAM-009-S01"]
-    session.append(item, BLIND_OK)
+    session.append(item, BLIND_OK, position=1)
     item.audio_path.write_bytes(item.audio_path.read_bytes()[:-2] + b"\x01\x02")  # audio changed
     # A forged record claiming mock audio is real must also be excluded.
     forged = dict(session.records()[0], item="tone-a/TAM-010-S01", audio_kind="mock")
@@ -392,3 +483,34 @@ def test_static_page_accessibility():
     for name in ("index.html", "app.js", "app.css"):
         content = (STATIC / name).read_text()
         assert "http://" not in content and "https://" not in content, name
+
+
+def test_blind_reveals_identity_and_text_only_after_rating(run):
+    run_dir, results, items = run
+    values = attach_text(list(items.values()), MANIFEST, None)  # blind with text for reveal
+    session, _ = _open(run_dir, session_id="reveal")
+    app = ListeningApp(
+        results=results, items=ordered(values, "x"), session=session, scales=scales(), token="t0ken"
+    )
+    httpd = make_server(app, 0)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{httpd.server_address[1]}"
+    headers = {"X-Session-Token": "t0ken", "Content-Type": "application/json"}
+    try:
+        before = _request(base + "/api/state", headers=headers)[2].decode()
+        assert not _has_tamil(before) and "tone-a" not in before and "tone-b" not in before
+        real = next(i for i, item in enumerate(app.items) if item.rateable)
+        body = json.dumps({"index": real, **BLIND_OK}).encode()
+        status, _, data = _request(base + "/api/rating", body, headers)
+        reveal = json.loads(data)["reveal"]
+        assert status == 200 and reveal["system_id"] == app.items[real].system_id
+        assert _has_tamil(reveal["text"])
+        state = json.loads(_request(base + "/api/state", headers=headers)[2])
+        revealed = [i for i in state["items"] if i["reveal"]]
+        assert [i["index"] for i in revealed] == [real] and revealed[0]["locked"] is True
+        again = _request(base + "/api/rating", body, headers)
+        assert again[0] == 409 and "final" in json.loads(again[2])["errors"][0]
+        assert len(session.records()) == 1
+    finally:
+        httpd.shutdown()
+        httpd.server_close()

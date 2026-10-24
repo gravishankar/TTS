@@ -13,9 +13,7 @@
     <h1>Tamil listening evaluation</h1>
     <p id="session-info">Loading session…</p>
     <p id="mode-info" class="notice"></p>
-    <p id="mock-banner" class="notice warning" hidden>
-      This is a mock run. Its audio is silent test output, not speech, and cannot be rated.
-    </p>
+    <p id="mock-banner" class="notice warning" hidden></p>
   </header>
 
   <main>
@@ -39,6 +37,13 @@
         <p class="hint">Select a word button to mark it as a problem word. Select it again to clear it.</p>
         <p id="ref-text" lang="ta"></p>
         <p id="text-note" class="notice warning" hidden></p>
+      </section>
+
+      <section id="reveal" aria-labelledby="reveal-heading" hidden>
+        <h3 id="reveal-heading">Revealed after rating</h3>
+        <p id="reveal-model"></p>
+        <p id="reveal-text" lang="ta"></p>
+        <p id="reveal-note" class="hint"></p>
       </section>
 
       <form id="rating-form" novalidate>

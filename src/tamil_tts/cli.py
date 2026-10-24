@@ -34,7 +34,13 @@ from tamil_tts.experiment import (
 from tamil_tts.frontend import Normalizer, SegmentationError, segment_text
 from tamil_tts.frontend.normalize import find_unexpanded_numbers
 from tamil_tts.listening.app import ListeningApp, make_server
-from tamil_tts.listening.items import RunLoadError, attach_text, load_run, ordered
+from tamil_tts.listening.items import (
+    RunLoadError,
+    attach_text,
+    for_session,
+    load_run,
+    ordered,
+)
 from tamil_tts.listening.report import ExportError
 from tamil_tts.listening.report import export as export_listening
 from tamil_tts.listening.store import SessionError, open_session
@@ -160,11 +166,13 @@ def _run_dir(experiment: str, run: str) -> Path:
 def cmd_listen_serve(args: argparse.Namespace) -> int:
     run_dir = _run_dir(args.experiment, args.run)
     results, items = load_run(run_dir)
+    items, excluded_mock = for_session(results, items)  # mock audio never enters a session
     scales = load_yaml(Path(args.config_dir) / "listening.yaml")
-    if args.mode == "text":
-        manifest = args.manifest or os.environ.get("TAM_MANIFEST")
-        if not manifest:
-            raise ConfigError("text mode needs the private manifest: --manifest or TAM_MANIFEST")
+    manifest = args.manifest or os.environ.get("TAM_MANIFEST")
+    if args.mode == "text" and not manifest:
+        raise ConfigError("text mode needs the private manifest: --manifest or TAM_MANIFEST")
+    if manifest:
+        # Text mode shows it; blind mode reveals it only after each item is rated.
         eval_cfg = load_yaml(Path(args.config_dir) / "eval.yaml")
         max_chars = get_value(eval_cfg, "segmentation.max_chars", allow_tbd=True)
         items = attach_text(items, Path(manifest), None if is_tbd(max_chars) else int(max_chars))
@@ -181,6 +189,7 @@ def cmd_listen_serve(args: argparse.Namespace) -> int:
         items=ordered(items, session.meta["order_seed"]),
         session=session,
         scales=scales,
+        excluded_mock=excluded_mock,
     )
     server = make_server(app, args.port)
     port = server.server_address[1]
@@ -351,7 +360,12 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--reviewer", required=True, help="pseudonymous id like REV-01")
     serve.add_argument("--mode", required=True, choices=["blind", "text"])
     serve.add_argument("--session", help="resume this session id")
-    serve.add_argument("--manifest", type=Path, help="private manifest (text mode)")
+    serve.add_argument(
+        "--manifest",
+        type=Path,
+        help="private manifest (required for text mode; blind mode uses "
+        "it only to reveal text after rating)",
+    )
     serve.add_argument("--port", type=int, default=8765)
     serve.set_defaults(func=cmd_listen_serve)
     exp = listen_cmds.add_parser("export", help="write listener_results.jsonl and a summary")

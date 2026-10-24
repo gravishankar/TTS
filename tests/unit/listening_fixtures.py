@@ -41,7 +41,9 @@ class SyntheticModel(BaseTTSModel):
         return RuntimeMetadata(wall_time_s=0.0, duration_s=1.0, sample_rate=8000)
 
 
-def make_run(tmp_path: Path, *, mock: bool = False, run_id: str = "r1") -> Path:
+def make_run(
+    tmp_path: Path, *, mock: bool = False, run_id: str = "r1", with_mock_system: bool = False
+) -> Path:
     """Create a run with real, silent, failed, missing and invalid audio (or a mock run)."""
     frozen = tmp_path / "frozen.json"
     if not frozen.exists():
@@ -53,12 +55,14 @@ def make_run(tmp_path: Path, *, mock: bool = False, run_id: str = "r1") -> Path:
         "splits: [test, challenge]\nsystems:\n"
         "  - {id: tone-a, model: a}\n  - {id: tone-b, model: b}\n"
         "  - {id: quiet, model: q}\n  - {id: broken, model: x}\n"
+        + ("  - {id: mocked, model: m}\n" if with_mock_system else "")
     )
     models = {
         "tone-a": SyntheticModel("tone-a"),
         "tone-b": SyntheticModel("tone-b"),
         "quiet": SyntheticModel("quiet", silent=True),
         "broken": MockTTSModel(identity=ModelIdentity("broken-test", "0"), failure="raise"),
+        "mocked": MockTTSModel(),  # identity "mock-silence": a mock inside a real run
     }
 
     def factory(spec):

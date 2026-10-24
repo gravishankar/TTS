@@ -84,7 +84,8 @@
     const list = $("item-list");
     list.textContent = "";
     state.items.forEach((item) => {
-      const done = item.saved ? "rated" : item.rateable ? "not rated" : "cannot be rated";
+      const done = item.locked ? "rated, final" : item.saved ? "rated"
+        : item.rateable ? "not rated" : "cannot be rated";
       const button = el(
         "button",
         { type: "button", "data-index": item.index, "aria-current": item.index === current ? "true" : false },
@@ -95,6 +96,20 @@
       li.appendChild(button);
       list.appendChild(li);
     });
+  }
+
+  function showReveal(item) {
+    const box = $("reveal");
+    const reveal = item.reveal;
+    box.hidden = !reveal;
+    if (!reveal) return;
+    $("reveal-model").textContent =
+      `System: ${reveal.system_id}. Model: ${reveal.model_id} ${reveal.model_version}.`;
+    $("reveal-text").textContent = reveal.text || "";
+    $("reveal-text").hidden = !reveal.text;
+    $("reveal-note").textContent = item.locked
+      ? "This blind rating is final. It was saved before the identity and text were shown."
+      : "";
   }
 
   function fillForm(item) {
@@ -165,8 +180,10 @@
     $("replay").disabled = !item.rateable;
     $("prev").disabled = current === 0;
     $("next").disabled = current === state.items.length - 1;
-    $("rating-fields").disabled = !item.rateable;
+    $("rating-fields").disabled = !item.rateable || item.locked;
+    $("categories").hidden = state.mode !== "text";
     fillForm(item);
+    showReveal(item);
     buildText(item);
     buildItemList();
     showErrors([]);
@@ -214,6 +231,10 @@
       showErrors([`This item cannot be rated: ${item.audio_label}`]);
       return;
     }
+    if (item.locked) {
+      showErrors(["This blind rating is final and cannot be changed."]);
+      return;
+    }
     const body = collect();
     const { ok, data } = await api("/api/rating", {
       method: "POST",
@@ -227,10 +248,14 @@
     if (!item.saved) state.progress.rated += 1;
     item.saved = { ratings: body.ratings, error_categories: body.error_categories,
       problem_word_indices: body.problem_word_indices, notes: body.notes };
+    item.reveal = data.reveal;
+    item.locked = state.mode === "blind";
+    $("rating-fields").disabled = item.locked;
+    showReveal(item);
     buildItemList();
     showErrors([]);
     $("progress").textContent = `${state.progress.rated} of ${state.progress.rateable} rateable items rated (${state.progress.total} items in total).`;
-    announce(`Saved rating for item ${item.number}.`);
+    announce(`Saved rating for item ${item.number}. Revealed: ${data.reveal.system_id}.`);
   }
 
   function onKey(event) {
@@ -264,9 +289,14 @@
     $("session-info").textContent =
       `${state.experiment}, run ${state.run_id}. Session ${state.session_id}, reviewer ${state.reviewer_id}.`;
     $("mode-info").textContent = state.mode === "blind"
-      ? "Blind mode: the text is hidden. Judge intelligibility and comfort."
-      : "Text mode: the reference text is shown. Judge pronunciation and completeness.";
-    $("mock-banner").hidden = !state.mock_run;
+      ? "Blind listening: the model and the text stay hidden until you save each rating, and a "
+        + "saved blind rating is final. Perceived intelligibility does not show that every word "
+        + "was spoken; completeness is checked in text-assisted verification."
+      : "Text-assisted verification: the Tamil reference text is shown. Judge pronunciation, "
+        + "completeness and intelligibility. The model is revealed after you save.";
+    $("mock-banner").hidden = !state.excluded_mock;
+    $("mock-banner").textContent =
+      `${state.excluded_mock} mock item(s) were excluded from this session. Mock audio is silent test output, not speech.`;
     buildCriteria();
     $("play").addEventListener("click", togglePlay);
     $("replay").addEventListener("click", replay);

@@ -108,6 +108,9 @@ def test_unrateable_items_are_labelled_and_disabled(browser, site):
 def test_rate_with_keyboard_save_and_resume(browser, site):
     app, url = site
     page, _ = _open(browser, url)
+    # Blind: identity and text are hidden until the rating is saved.
+    assert page.is_hidden("#reveal")
+    assert page.is_hidden("#categories")
     page.get_by_role("radio", name="yes").first.focus()
     page.keyboard.press("Space")
     page.get_by_role("radio", name="4").focus()
@@ -116,6 +119,8 @@ def test_rate_with_keyboard_save_and_resume(browser, site):
     sync_api.expect(page.locator("#status")).to_contain_text("Saved rating")
     assert len(app.session.records()) == 1
     heading = page.text_content("#item-heading")
+    sync_api.expect(page.locator("#reveal-model")).to_contain_text("System: ")
+    assert page.is_disabled("#rating-fields input[name='comfort'] >> nth=0")  # final
 
     # Missing required fields are reported in the alert region, not saved silently.
     page.keyboard.press("n")
@@ -129,5 +134,6 @@ def test_rate_with_keyboard_save_and_resume(browser, site):
     resumed, _ = _open(browser, url)
     resumed.get_by_role("button", name=heading.replace(" of", ":").split(":")[0] + ":").click()
     assert resumed.is_checked("#crit-comfort-4")
-    assert resumed.is_checked("#crit-intelligibility-yes")
+    assert resumed.is_checked("#crit-perceived_intelligibility-yes")
+    assert "final" in resumed.text_content("#reveal-note")
     assert "1 of" in resumed.text_content("#progress")

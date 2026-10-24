@@ -165,6 +165,9 @@ A local-only browser app launched with `tamil-tts listen`. See [ACCESSIBILITY.md
   Text mode attaches text from the private manifest, verified by segment checksum.
 - `schema.py`: validates submissions against `configs/listening.yaml`. TBD scales are rejected.
 - `store.py`: append-only sessions under `<run>/listening/sessions/`, which can be resumed.
+  Each session records a random order seed. Blind ratings are final once saved (identity and text
+  are revealed after saving). A reviewer with a text session cannot do blind ratings for that run.
+  Mock items never enter a session.
 - `report.py`: each export goes to a new folder. `listener_results.jsonl` drops notes and text.
   The summary keeps automatic checks and human judgments separate.
 

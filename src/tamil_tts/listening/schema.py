@@ -10,8 +10,10 @@ Rules:
   items are rejected.
 - Each mode has its own criteria; criteria of the other mode are rejected.
 - TBD criteria are rejected: their scale is not defined.
-- Error categories come from the PRD §9 taxonomy. Problem words are word positions in
-  the segment, never the words themselves.
+- Error categories (PRD §9 taxonomy) and problem words are recorded only in text mode.
+  Problem words are word positions in the segment, never the words themselves.
+- Blind perceived intelligibility is not evidence that every word was spoken; only the
+  text-mode completeness judgment speaks to that.
 """
 
 from __future__ import annotations
@@ -112,6 +114,8 @@ def validate_submission(
     if mode == "blind":
         if indices:
             problems.append("problem words need visible text; use text mode")
+        if categories:
+            problems.append("error categories are recorded in text mode")
     else:
         if item.text is None:
             problems.append("reference text is not available for this item")

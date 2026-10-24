@@ -139,3 +139,11 @@ def test_listen_export_and_guards(tmp_path, monkeypatch, capsys):
     assert main([*base, "--reviewer", "REV-01", "--mode", "text"]) == 2  # no manifest
     err = capsys.readouterr().err
     assert "pseudonymous" in err and "private manifest" in err
+
+    mock_root = tmp_path / "mockroot"
+    mock_root.mkdir()
+    make_run(mock_root, mock=True, run_id="m1")
+    monkeypatch.setenv("TAMIL_TTS_OUTPUT_ROOT", str(mock_root / "outputs"))
+    serve_mock = ["listen", "serve", "EXP-001", "--run", "m1", "--port", "0"]
+    assert main([*serve_mock, "--reviewer", "REV-01", "--mode", "blind"]) == 2
+    assert "mock audio cannot enter" in capsys.readouterr().err

@@ -8,8 +8,10 @@ Safeguards:
 - Every /api and /audio request needs the per-session token printed at start-up.
 - Content-Security-Policy allows only same-origin resources; the page loads nothing
   from external services.
-- Items are addressed by position, so system names stay hidden from reviewers.
-- Only real audio is served or rateable. Text is sent only in text mode.
+- Items are addressed by their seeded presentation position. Model identity is sent only
+  after an item's rating is saved; in blind mode the text is revealed the same way, and
+  the rating is then final.
+- Mock audio never enters a session. Only real audio is served or rateable.
 """
 
 from __future__ import annotations
@@ -24,9 +26,9 @@ from importlib import resources
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
-from tamil_tts.listening.items import AUDIO_KIND_TEXT, ListeningItem
+from tamil_tts.listening.items import AUDIO_KIND_TEXT, AudioKind, ListeningItem
 from tamil_tts.listening.schema import public_criteria, validate_submission
-from tamil_tts.listening.store import Session
+from tamil_tts.listening.store import Session, SessionError
 from tamil_tts.manifest import TAXONOMY_TAGS
 
 STATIC = {"/": "index.html", "/app.js": "app.js", "/app.css": "app.css"}
@@ -59,16 +61,32 @@ class ListeningApp:
         session: Session,
         scales: Mapping[str, Any],
         token: str | None = None,
+        excluded_mock: int = 0,
     ):
+        if results.get("mock") or any(i.audio_kind is AudioKind.MOCK for i in items):
+            raise ValueError("mock audio cannot enter an evaluation session")
         self.results = results
-        self.items = items  # already in session order
+        self.items = items  # already in session (seeded) order
         self.session = session
         self.scales = scales
         self.token = token or secrets.token_urlsafe(24)
+        self.excluded_mock = excluded_mock
+
+    def _reveal(self, item: ListeningItem) -> dict[str, Any]:
+        """Shown only after the item's rating is saved."""
+        reveal: dict[str, Any] = {
+            "system_id": item.system_id,
+            "model_id": item.model_id,
+            "model_version": item.model_version,
+        }
+        if self.session.mode == "blind":
+            reveal["text"] = item.text
+            reveal["text_note"] = item.text_note if item.text is None else None
+        return reveal
 
     def state(self) -> dict[str, Any]:
         latest = self.session.latest()
-        text_mode = self.session.mode == "text"
+        blind = self.session.mode == "blind"
         items = []
         for index, item in enumerate(self.items):
             saved = latest.get(item.key)
@@ -85,8 +103,10 @@ class ListeningApp:
                     k: saved[k]
                     for k in ("ratings", "error_categories", "problem_word_indices", "notes")
                 },
+                "locked": blind and saved is not None,
+                "reveal": self._reveal(item) if saved is not None else None,
             }
-            if text_mode:
+            if not blind:
                 entry["text"] = item.text
                 entry["words"] = item.text.split() if item.text else []
                 entry["text_note"] = item.text_note
@@ -95,13 +115,13 @@ class ListeningApp:
         return {
             "experiment": self.results.get("experiment"),
             "run_id": self.results.get("run_id"),
-            "mock_run": bool(self.results.get("mock")),
             "mode": self.session.mode,
             "session_id": self.session.session_id,
             "reviewer_id": self.session.reviewer_id,
             "criteria": public_criteria(self.scales, self.session.mode),
             "taxonomy": sorted(TAXONOMY_TAGS),
             "notes_max_chars": int(self.scales.get("notes", {}).get("max_chars", 1000)),
+            "excluded_mock": self.excluded_mock,
             "items": items,
             "progress": {
                 "total": len(self.items),
@@ -116,11 +136,16 @@ class ListeningApp:
         index = body["index"]
         item = self.items[index] if 0 <= index < len(self.items) else None
         payload = {k: v for k, v in body.items() if k != "index"}
+        if item is not None and self.session.mode == "blind" and item.key in self.session.latest():
+            return 409, {"errors": ["blind ratings are final once submitted"]}
         problems = validate_submission(payload, item, self.session.mode, self.scales)
         if problems:
             return 400, {"errors": problems}
-        record = self.session.append(item, payload)
-        return 200, {"saved": True, "seq": record["seq"]}
+        try:
+            record = self.session.append(item, payload, position=index + 1)
+        except SessionError as exc:
+            return 400, {"errors": [str(exc)]}
+        return 200, {"saved": True, "seq": record["seq"], "reveal": self._reveal(item)}
 
 
 def make_handler(app: ListeningApp) -> type[BaseHTTPRequestHandler]:

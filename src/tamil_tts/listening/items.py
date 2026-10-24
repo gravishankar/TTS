@@ -10,14 +10,17 @@ session loads and classified as:
 - silent   digital silence
 - error    synthesis failed
 
-Text is attached only in "text" mode, from the private manifest, and only when the
-re-segmented text matches the run's segment checksum.
+Mock items never enter a session: `for_session` refuses a mock run and drops mock items
+from a mixed run, reporting only their count.
+
+Text is attached from the private manifest, and only when the re-segmented text matches
+the run's segment checksum. In blind mode it is revealed only after an item is rated.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
+import random
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
@@ -49,7 +52,7 @@ AUDIO_KIND_TEXT = {
 
 
 class RunLoadError(Exception):
-    """The run directory is not a complete experiment run."""
+    """The run directory is not a complete experiment run, or cannot be evaluated."""
 
 
 @dataclass(frozen=True)
@@ -65,6 +68,8 @@ class ListeningItem:
     audio_path: Path | None
     audio_sha256: str | None
     duration_s: float | None
+    model_id: str = ""
+    model_version: str = ""
     text: str | None = None  # only in text mode; never written to exported files
     text_note: str | None = None
 
@@ -101,6 +106,7 @@ def load_run(run_dir: Path) -> tuple[dict[str, Any], list[ListeningItem]]:
     if not results_path.is_file() or not segments_path.is_file():
         raise RunLoadError(f"not a complete run (results.json/segments.jsonl missing): {run_dir}")
     results = json.loads(results_path.read_text(encoding="utf-8"))
+    models = {s["system_id"]: s.get("model", {}) for s in results.get("systems", [])}
     mock_systems = {
         s["system_id"]
         for s in results.get("systems", [])
@@ -125,6 +131,8 @@ def load_run(run_dir: Path) -> tuple[dict[str, Any], list[ListeningItem]]:
                 audio_path=path,
                 audio_sha256=file_sha256(path) if kind is AudioKind.REAL and path else None,
                 duration_s=row.get("duration_s"),
+                model_id=str(models.get(row["system_id"], {}).get("model_id", "")),
+                model_version=str(models.get(row["system_id"], {}).get("version", "")),
             )
         )
     return results, items
@@ -157,6 +165,20 @@ def attach_text(
     return attached
 
 
+def for_session(
+    results: dict[str, Any], items: list[ListeningItem]
+) -> tuple[list[ListeningItem], int]:
+    """Items allowed into an evaluation session, and the number of mock items dropped."""
+    if results.get("mock"):
+        raise RunLoadError("this is a mock run; mock audio cannot enter an evaluation session")
+    kept = [i for i in items if i.audio_kind is not AudioKind.MOCK]
+    if not kept:
+        raise RunLoadError("no non-mock items in this run; nothing can be evaluated")
+    return kept, len(items) - len(kept)
+
+
 def ordered(items: list[ListeningItem], seed: str) -> list[ListeningItem]:
-    """Deterministic pseudo-random order (PRD §17: randomized where possible)."""
-    return sorted(items, key=lambda i: hashlib.sha256(f"{seed}:{i.key}".encode()).hexdigest())
+    """Shuffle items (and so model presentation order) with a recorded seed (PRD §17)."""
+    shuffled = sorted(items, key=lambda i: i.key)
+    random.Random(seed).shuffle(shuffled)
+    return shuffled

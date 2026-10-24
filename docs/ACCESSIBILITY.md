@@ -53,8 +53,10 @@ for intelligibility, completeness or listening comfort (§4).
   ingests audio.
 
 **Implemented (C5):** `tamil-tts listen serve` / `export`; see [LISTENING.md](LISTENING.md).
-Blind mode collects intelligibility and comfort. Text mode collects pronunciation, completeness,
-error categories, problem-word positions and comfort. Naturalness and severity are TBD. Keyboard
+Blind listening hides model identity and text until each rating is saved, and collects perceived
+intelligibility and comfort. Blind intelligibility is not evidence that every word was spoken.
+Text-assisted verification collects pronunciation, completeness, intelligibility, error categories
+and problem-word positions. Naturalness and severity are TBD. Keyboard
 operation, labels, live regions and `lang="ta"` are covered by automated browser tests.
 A/B comparison and sustained-listening sessions are not implemented yet.
 

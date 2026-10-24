@@ -8,12 +8,21 @@ Layout inside the run directory (outside Git, under $TAMIL_TTS_OUTPUT_ROOT):
 
 Session files are private: they may hold reviewer notes. Nothing is ever rewritten: a
 changed rating is a new line, and every export goes to a new directory.
+
+Integrity rules:
+- Each mode is its own session, so ratings made in one mode are never touched by another.
+- A blind rating is final: once saved, model identity (and text) are revealed for that item.
+- A reviewer who has opened a text session for a run cannot start or resume a blind session
+  for that run, because they have already seen the text.
+- Only real audio can be recorded.
+- The presentation order comes from a random seed recorded in session.json.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -71,8 +80,15 @@ class Session:
             latest[record["item"]] = record
         return latest
 
-    def append(self, item: ListeningItem, payload: Mapping[str, Any]) -> dict[str, Any]:
+    def append(
+        self, item: ListeningItem, payload: Mapping[str, Any], position: int
+    ) -> dict[str, Any]:
         """Append a validated submission. The caller validates first."""
+        if not item.rateable:
+            raise SessionError("only real audio can be recorded in an evaluation session")
+        previous = [r for r in self.records() if r["item"] == item.key]
+        if previous and self.mode == "blind":
+            raise SessionError("blind ratings are final once submitted")
         record = {
             "format_version": RECORD_FORMAT_VERSION,
             "session_id": self.session_id,
@@ -93,6 +109,9 @@ class Session:
             "error_categories": list(payload.get("error_categories", [])),
             "problem_word_indices": list(payload.get("problem_word_indices", [])),
             "notes": str(payload.get("notes", "")),
+            "order_seed": self.meta["order_seed"],
+            "presentation_position": position,
+            "revision": len(previous) + 1,
             "seq": len(self.records()) + 1,
             "submitted_at": _now(),
         }
@@ -126,6 +145,13 @@ def open_session(
         raise SessionError("invalid session id")
 
     base = sessions_dir(run_dir)
+    if mode == "blind" and any(
+        s.reviewer_id == reviewer_id and s.mode == "text" for s in all_sessions(run_dir)
+    ):
+        raise SessionError(
+            f"{reviewer_id} has a text session for this run and has seen the text; "
+            "blind ratings by this reviewer are no longer blind"
+        )
     if session_id is not None and (base / session_id / "session.json").is_file():
         directory = base / session_id
         meta = json.loads((directory / "session.json").read_text(encoding="utf-8"))
@@ -150,7 +176,7 @@ def open_session(
         "mode": mode,
         "experiment": experiment,
         "run_id": run_id,
-        "order_seed": session_id,
+        "order_seed": secrets.token_hex(16),
         "created_at": created.isoformat(timespec="seconds"),
     }
     with (directory / "session.json").open("x", encoding="utf-8") as handle:
