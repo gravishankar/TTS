@@ -58,10 +58,12 @@
         const values = c.type === "scale"
           ? Array.from({ length: c.max - c.min + 1 }, (_, i) => String(c.min + i))
           : c.options;
+        const labels = c.labels || {};
+        if (Object.keys(labels).length) fs.classList.add("labelled-scale");
         values.forEach((v) => {
           const id = `crit-${c.name}-${v}`;
           const input = el("input", { type: "radio", name: c.name, id, value: v });
-          const label = el("label", { for: id }, ` ${v}`);
+          const label = el("label", { for: id }, labels[v] ? ` ${v} — ${labels[v]}` : ` ${v}`);
           label.prepend(input);
           fs.appendChild(label);
         });

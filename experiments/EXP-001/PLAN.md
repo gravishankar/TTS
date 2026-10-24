@@ -24,7 +24,10 @@ LISTENING (after a real run)
 tamil-tts listen serve EXP-001 --run <run-id> --reviewer REV-01 --mode blind
 tamil-tts listen serve EXP-001 --run <run-id> --reviewer REV-01 --mode text
 tamil-tts listen export EXP-001 --run <run-id>
+tamil-tts listen publish EXP-001 --run <run-id> --export <export-id> --reviewed-by REV-01
 ```
+Commit only the published aggregate (`experiments/EXP-001/listening/<export-id>/`). Never
+commit `listener_results.jsonl`, session files, notes, Tamil text or audio.
 
 GATES
 Completeness 100% (hard). The automated check gives only `provisional_pass` (audio present, not

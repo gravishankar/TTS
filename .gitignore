@@ -94,3 +94,10 @@ service-account*.json
 venv/
 .DS_Store
 *.log
+
+# Listening (C5A): individual listener records, sessions and reviewer notes never enter Git.
+# Only reviewed aggregates published with `tamil-tts listen publish` may be committed.
+listener_results*.jsonl
+ratings.jsonl
+**/listening/sessions/
+**/listening/exports/

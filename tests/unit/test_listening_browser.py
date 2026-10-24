@@ -113,7 +113,9 @@ def test_rate_with_keyboard_save_and_resume(browser, site):
     assert page.is_hidden("#categories")
     page.get_by_role("radio", name="yes").first.focus()
     page.keyboard.press("Space")
-    page.get_by_role("radio", name="4").focus()
+    page.locator("#crit-naturalness-4").focus()
+    page.keyboard.press("Space")
+    page.locator("#crit-comfort-4").focus()
     page.keyboard.press("Space")
     page.keyboard.press("s")  # shortcut works from a radio button
     sync_api.expect(page.locator("#status")).to_contain_text("Saved rating")
@@ -137,3 +139,16 @@ def test_rate_with_keyboard_save_and_resume(browser, site):
     assert resumed.is_checked("#crit-perceived_intelligibility-yes")
     assert "final" in resumed.text_content("#reveal-note")
     assert "1 of" in resumed.text_content("#progress")
+
+
+def test_scale_labels_are_announced(browser, site):
+    _, url = site
+    page, _ = _open(browser, url)
+    radio = page.get_by_role("radio", name="1 — Very unnatural; difficult to listen to.")
+    assert radio.count() == 1
+    assert (
+        page.get_by_role(
+            "group", name="Naturalness (project-specific scale, not MOS) (required)"
+        ).count()
+        == 1
+    )

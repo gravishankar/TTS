@@ -83,6 +83,8 @@ Improve verified Tamil text → accessible offline speech, measured on frozen TA
 - Mock results are never evidence about a real model. Automated completeness is provisional only.
 - Listening (docs/LISTENING.md): only real audio is rateable; TBD scales are rejected; session
   files and notes stay private; exports never contain Tamil text, notes or paths.
+- Git holds only reviewed, anonymized listening aggregates (`tamil-tts listen publish`), never
+  individual listener records. Naturalness/severity scales are project-specific, not MOS.
 
 ## DEV COMMANDS
 - `python3.11 -m venv .venv && .venv/bin/pip install -e '.[dev]'`

@@ -1,6 +1,8 @@
 # Human listening criteria (PRD §17, ACCESSIBILITY.md).
-# Only scales defined in the PRD are numeric. "TBD" criteria are shown to reviewers as
-# "not collected (scale TBD)" and any submitted value is rejected.
+# Comfort 1–5 comes from the PRD. Naturalness 1–5 and error severity 0–3 are
+# PROJECT-SPECIFIC scales chosen by the project owner (C5A). They are not externally
+# validated MOS (Mean Opinion Score) measurements and must not be compared with
+# published MOS results. "TBD" criteria would be shown as "not collected" and rejected.
 #
 # Modes:
 #   blind  model identity and reference text stay hidden until the item's rating is saved.
@@ -11,14 +13,22 @@ criteria:
   perceived_intelligibility:
     label: "Perceived intelligibility: could you understand the speech without the text?"
     type: choice
-    options: ["yes", "no", "unsure"]
+    options: ["yes", "no", "unsure"]  # one judgment per segment
     modes: [blind]
     required: true
   naturalness:
-    label: "Naturalness"
-    type: TBD                       # requested; no scale is defined in the PRD
+    label: "Naturalness (project-specific scale, not MOS)"
+    type: scale                     # project-specific (C5A)
+    min: 1
+    max: 5
+    labels:
+      1: "Very unnatural; difficult to listen to."
+      2: "Mostly unnatural; frequent distracting speech patterns."
+      3: "Acceptable; noticeable synthetic speech."
+      4: "Natural; minor synthetic artifacts."
+      5: "Very natural; close to comfortable human narration."
     modes: [blind]
-    required: false
+    required: true
   comfort:
     label: "Listening comfort (1 = very uncomfortable, 5 = very comfortable)"
     type: scale
@@ -41,13 +51,20 @@ criteria:
   intelligibility:
     label: "Intelligibility with the text visible: could you follow every word?"
     type: choice
-    options: ["yes", "no", "unsure"]  # aggregation unit is TBD (release_gates)
+    options: ["yes", "no", "unsure"]  # one judgment per segment (scoring unit: segment)
     modes: [text]
     required: true
-  pronunciation_severity:
-    label: "Severity of pronunciation errors"
-    type: TBD                       # errors.jsonl shows "severity", but no scale is defined
+  error_severity:
+    label: "Error severity (project-specific scale)"
+    type: scale                     # project-specific (C5A); 0 = no error
+    min: 0
+    max: 3
+    labels:
+      0: "None."
+      1: "Minor."
+      2: "Major."
+      3: "Critical."
     modes: [text]
-    required: false
+    required: true
 notes:
   max_chars: 1000                   # private: kept in the session, never exported

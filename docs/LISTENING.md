@@ -8,9 +8,11 @@ internet.
 
 | Mode | While rating | After the rating is saved | Collected |
 |---|---|---|---|
-| `blind` (blind listening) | Model identity and Tamil text are hidden | Identity is revealed, plus the text if a manifest was given. The rating is then **final** | Perceived intelligibility (yes / no / unsure), listening comfort (1–5). Naturalness: **TBD** (no scale in the PRD), shown but not collected |
-| `text` (text-assisted verification) | Tamil reference text shown (authorized reviewers, private manifest); model identity hidden | Identity is revealed. Re-rating adds a new revision | Pronunciation accuracy (correct / errors / unsure), completeness (yes / no / unsure), intelligibility (yes / no / unsure), error categories (PRD §9), problem words by position. Severity: **TBD** |
+| `blind` (blind listening) | Model identity and Tamil text are hidden | Identity is revealed, plus the text if a manifest was given. The rating is then **final** | Perceived intelligibility (yes / no / unsure), naturalness (1–5), listening comfort (1–5) |
+| `text` (text-assisted verification) | Tamil reference text shown (authorized reviewers, private manifest); model identity hidden | Identity is revealed. Re-rating adds a new revision | Pronunciation accuracy (correct / errors / unsure), completeness (yes / no / unsure), intelligibility (yes / no / unsure), error severity (0–3), error categories (PRD §9), problem words by position |
 
+- **Intelligibility is rated per segment**, in both modes (one judgment per segment). This is
+  the scoring unit for the provisional ≥90% challenge-intelligibility target.
 - **Blind perceived intelligibility is not evidence that every word was spoken.** Only the
   text-assisted completeness judgment addresses missing words. The summary says this next to
   the blind results.
@@ -20,6 +22,42 @@ internet.
 
 Scales are defined in `configs/listening.yaml`. Any value sent for a TBD criterion is
 rejected.
+
+## Scales
+
+> **These are project-specific scales.** Naturalness (1–5) and error severity (0–3) were chosen
+> for this project (C5A). They are **not externally validated MOS (Mean Opinion Score)
+> measurements**. Do not compare them with published MOS results. Listening comfort (1–5)
+> comes from the PRD. The same caution appears in every listening summary.
+
+**Naturalness** (blind listening, required):
+
+| Value | Meaning |
+|---|---|
+| 1 | Very unnatural; difficult to listen to. |
+| 2 | Mostly unnatural; frequent distracting speech patterns. |
+| 3 | Acceptable; noticeable synthetic speech. |
+| 4 | Natural; minor synthetic artifacts. |
+| 5 | Very natural; close to comfortable human narration. |
+
+**Error severity** (text-assisted verification, required):
+
+| Value | Meaning |
+|---|---|
+| 0 | None. |
+| 1 | Minor. |
+| 2 | Major. |
+| 3 | Critical. |
+
+Consistency rules for error severity:
+- Severity 0 is refused when error categories are selected, or when pronunciation is "errors".
+- Severity 1–3 needs at least one error category.
+
+**Listening comfort** (blind listening, required): 1 = very uncomfortable … 5 = very
+comfortable (PRD §17).
+
+Each radio button's spoken name includes its meaning (for example "1 — Very unnatural; difficult
+to listen to."), so screen-reader users hear the full label.
 
 ## Integrity rules
 
@@ -98,14 +136,43 @@ region. Tamil text is marked `lang="ta"`, so screen readers can switch voice.
     human judgments are kept in separate sections.
 
   Export excludes ratings of non-real audio, and ratings whose audio changed after rating
-  (checksum mismatch).
+  (checksum mismatch). Every export starts as `review.status: unreviewed`.
+
+## What may enter Git
+
+| Item | In Git? |
+|---|---|
+| Individual listener records (`listener_results.jsonl`, `ratings.jsonl`, session folders) | **Never** |
+| Reviewer notes | **Never** (they are not even exported) |
+| Private Tamil text, TAM transcripts | **Never** |
+| Raw or generated audio | **Never** |
+| Unreviewed exports (`<run>/listening/exports/`) | **Never** |
+| Reviewed, anonymized aggregate: `listening_summary.json` + `LISTENING_REPORT.md` | **Yes**, only through `listen publish` |
+
+`.gitignore` blocks the "never" files, and a test fails if any of them is tracked.
+
+To publish an aggregate after you have read it:
+
+```bash
+.venv/bin/tamil-tts listen publish EXP-001 --run <run-id> --export <export-id> --reviewed-by REV-01
+.venv/bin/tamil-tts listen check-public experiments/EXP-001/listening/<export-id>
+```
+
+`publish` copies only the two aggregate files into `experiments/EXP-001/listening/<export-id>/`.
+It marks them reviewed (pseudonymous reviewer code and date) and refuses to overwrite. It also
+refuses the result if `check-public` finds a problem. `check-public` requires:
+- only the two aggregate files, nothing else;
+- `review.status: reviewed`, with a `REV-NN` reviewer code and a date;
+- no per-record or private fields (notes, reviewer ids, session ids, word positions);
+- no Tamil text and no absolute paths.
+
+Anonymity caution: with very few reviewers, an aggregate can still reveal an individual's
+ratings. **OPEN QUESTION:** the minimum number of reviewers before publishing.
 
 ## Open questions
 
-- **OPEN QUESTION:** May `listener_results.jsonl` be committed? The PRD lists it among
-  committed outputs. It holds no text, but it is per-reviewer data.
-- **OPEN QUESTION:** Scales for naturalness (requested for blind listening) and pronunciation
-  severity. Both are shown as TBD and are not collected until a scale is chosen.
-- **OPEN QUESTION:** The intelligibility scoring unit (word, segment or utterance) for the ≥90%
-  target.
+- **RESOLVED (C5A):** `listener_results.jsonl` is never committed. Only reviewed aggregates are.
+- **RESOLVED (C5A):** Naturalness 1–5 and error severity 0–3 (project-specific, not MOS).
+- **RESOLVED (C5A):** Intelligibility is rated per segment.
+- **OPEN QUESTION:** Minimum number of reviewers before an aggregate is published.
 - Not yet implemented: A/B comparison, and 5–10 minute sustained-listening sessions (PRD §17).

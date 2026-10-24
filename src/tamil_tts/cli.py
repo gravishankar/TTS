@@ -12,6 +12,7 @@ import json
 import os
 import sys
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 
 from tamil_tts import __version__
@@ -41,7 +42,7 @@ from tamil_tts.listening.items import (
     load_run,
     ordered,
 )
-from tamil_tts.listening.report import ExportError
+from tamil_tts.listening.report import ExportError, check_public, publish
 from tamil_tts.listening.report import export as export_listening
 from tamil_tts.listening.store import SessionError, open_session
 from tamil_tts.manifest import Issue, load_manifest
@@ -219,6 +220,25 @@ def cmd_listen_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_listen_publish(args: argparse.Namespace) -> int:
+    export_dir = _run_dir(args.experiment, args.run) / "listening" / "exports" / args.export
+    if not (export_dir / "listening_summary.json").is_file():
+        raise ExportError(f"export not found: {args.export}")
+    reviewed_on = args.reviewed_on or datetime.now(UTC).strftime("%Y-%m-%d")
+    destination = Path(args.experiments_dir) / args.experiment / "listening"
+    out = publish(export_dir, destination, reviewed_by=args.reviewed_by, reviewed_on=reviewed_on)
+    print(f"published aggregate report (no individual records): {out}")
+    return 0
+
+
+def cmd_listen_check_public(args: argparse.Namespace) -> int:
+    problems = check_public(args.directory)
+    for problem in problems:
+        print(f"ERROR: {problem}", file=sys.stderr)
+    print(f"{len(problems)} problem(s)", file=sys.stderr)
+    return 1 if problems else 0
+
+
 def cmd_audio_inspect(args: argparse.Namespace) -> int:
     try:
         info = inspect_wav(args.wav)
@@ -373,6 +393,20 @@ def build_parser() -> argparse.ArgumentParser:
     exp.add_argument("--run", required=True)
     exp.add_argument("--export-id", help="default: UTC timestamp")
     exp.set_defaults(func=cmd_listen_export)
+
+    pub = listen_cmds.add_parser(
+        "publish", help="copy a reviewed, anonymized aggregate report into the repository"
+    )
+    pub.add_argument("experiment")
+    pub.add_argument("--run", required=True)
+    pub.add_argument("--export", required=True, help="export id under <run>/listening/exports")
+    pub.add_argument("--reviewed-by", required=True, help="pseudonymous code like REV-01")
+    pub.add_argument("--reviewed-on", help="YYYY-MM-DD (default: today, UTC)")
+    pub.add_argument("--experiments-dir", default="experiments")
+    pub.set_defaults(func=cmd_listen_publish)
+    chk = listen_cmds.add_parser("check-public", help="check a report folder before committing")
+    chk.add_argument("directory", type=Path)
+    chk.set_defaults(func=cmd_listen_check_public)
 
     audio = groups.add_parser("audio", help="inspect local audio files")
     audio_cmds = audio.add_subparsers(dest="command", required=True)

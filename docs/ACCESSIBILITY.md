@@ -55,8 +55,10 @@ for intelligibility, completeness or listening comfort (§4).
 **Implemented (C5):** `tamil-tts listen serve` / `export`; see [LISTENING.md](LISTENING.md).
 Blind listening hides model identity and text until each rating is saved, and collects perceived
 intelligibility and comfort. Blind intelligibility is not evidence that every word was spoken.
-Text-assisted verification collects pronunciation, completeness, intelligibility, error categories
-and problem-word positions. Naturalness and severity are TBD. Keyboard
+Text-assisted verification collects pronunciation, completeness, intelligibility, error severity
+(0–3), error categories and problem-word positions. Blind listening also collects naturalness
+(1–5). Naturalness and severity are project-specific scales, not validated MOS. Intelligibility
+is judged per segment. Keyboard
 operation, labels, live regions and `lang="ta"` are covered by automated browser tests.
 A/B comparison and sustained-listening sessions are not implemented yet.
 
@@ -75,8 +77,8 @@ Things the PRD does not specify. These must not be assumed.
    and whether large text and high contrast are also required.
 2. **OPEN QUESTION:** Who the listeners are, how many there are, and whether listener groups must
    include elderly and visually impaired people rather than only volunteers.
-3. **OPEN QUESTION:** How challenge intelligibility (≥90%) is scored: by word, by segment or by
-   utterance, and how the listener's response is captured when no text is shown.
+3. **RESOLVED (C5A):** Challenge intelligibility is scored per segment (one yes/no/unsure
+   judgment per segment).
 4. **OPEN QUESTION:** Target speaking rate and pause lengths for the ACCESS tag, and whether
    listeners can adjust speed.
 5. **OPEN QUESTION:** Wording and anchors of the 1–5 comfort scale.

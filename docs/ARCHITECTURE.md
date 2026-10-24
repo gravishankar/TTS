@@ -168,6 +168,9 @@ A local-only browser app launched with `tamil-tts listen`. See [ACCESSIBILITY.md
   Each session records a random order seed. Blind ratings are final once saved (identity and text
   are revealed after saving). A reviewer with a text session cannot do blind ratings for that run.
   Mock items never enter a session.
+- Git policy (C5A): only `tamil-tts listen publish` puts listening results in the repository. It
+  copies a reviewed, anonymized aggregate after `check-public` passes. Individual records stay
+  outside Git (`.gitignore`, plus a test).
 - `report.py`: each export goes to a new folder. `listener_results.jsonl` drops notes and text.
   The summary keeps automatic checks and human judgments separate.
 

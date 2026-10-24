@@ -18,7 +18,7 @@ gates:
   challenge_intelligibility:
     role: human_authoritative
     min: 0.90
-    scoring_unit: TBD
+    scoring_unit: segment         # C5A: one intelligibility judgment per segment
   comfort:
     role: accessibility
     scale: [1, 5]

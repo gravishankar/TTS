@@ -13,7 +13,10 @@ Rules:
 - Error categories (PRD §9 taxonomy) and problem words are recorded only in text mode.
   Problem words are word positions in the segment, never the words themselves.
 - Blind perceived intelligibility is not evidence that every word was spoken; only the
-  text-mode completeness judgment speaks to that.
+  text-mode completeness judgment speaks to that. Intelligibility is judged per segment.
+- error_severity 0 means no error: it must agree with the error categories and the
+  pronunciation answer.
+- Naturalness and error severity are project-specific scales, not validated MOS.
 """
 
 from __future__ import annotations
@@ -49,6 +52,8 @@ def public_criteria(scales: Mapping[str, Any], mode: str) -> list[dict[str, Any]
             entry["options"] = [str(o) for o in spec["options"]]
         elif spec["type"] == "scale":
             entry["min"], entry["max"] = int(spec["min"]), int(spec["max"])
+            labels = spec.get("labels") or {}
+            entry["labels"] = {str(k): str(v) for k, v in labels.items()}
         entry["required"] = bool(spec.get("required")) and not is_tbd(spec["type"])
         result.append(entry)
     return result
@@ -123,6 +128,12 @@ def validate_submission(
             problems.append("problem_word_indices out of range")
         if ratings.get("pronunciation") == "errors" and not categories:
             problems.append("choose at least one error category when pronunciation has errors")
+        severity = ratings.get("error_severity")
+        if isinstance(severity, int) and not isinstance(severity, bool):
+            if severity == 0 and (categories or ratings.get("pronunciation") == "errors"):
+                problems.append("error_severity 0 (none) conflicts with recorded errors")
+            if severity > 0 and not categories:
+                problems.append("error_severity above 0 needs at least one error category")
 
     notes = payload.get("notes", "")
     max_chars = int(scales.get("notes", {}).get("max_chars", 1000))

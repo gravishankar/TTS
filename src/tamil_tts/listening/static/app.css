@@ -80,6 +80,9 @@ legend {
   display: inline-block;
   margin: 0.2rem 0.8rem 0.2rem 0;
 }
+.labelled-scale label {
+  display: block;
+}
 input[type="radio"],
 input[type="checkbox"] {
   width: 1.2rem;

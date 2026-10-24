@@ -9,11 +9,17 @@ Each export goes to a new directory `<run>/listening/exports/<export_id>/`:
 
 Records are re-checked on export: only real audio counts, and a rating whose audio
 changed since it was given (different sha256) is excluded as stale.
+
+Git policy (C5A): individual listener records, session files, reviewer notes, private
+Tamil text and audio never enter Git. Only a reviewed, anonymized aggregate
+(listening_summary.json + LISTENING_REPORT.md) may be copied into the repository, with
+`publish`, which runs `check_public` first.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import statistics
 from collections import Counter, defaultdict
 from collections.abc import Mapping
@@ -53,7 +59,10 @@ MODE_TITLES = {
 }
 INTERPRETATION = {
     "perceived_intelligibility": "Blind perceived intelligibility is NOT evidence that every "
-    "word was spoken. Only text-assisted completeness judgments address missing words.",
+    "word was spoken. Only text-assisted completeness judgments address missing words. "
+    "Intelligibility is judged per segment.",
+    "scales": "Naturalness (1-5) and error severity (0-3) are project-specific scales. They are "
+    "not externally validated MOS measurements and must not be compared with published MOS.",
     "automatic_checks": "Automatic checks only show that audio exists and is not silent. They "
     "are machine checks, reported separately from human judgments.",
 }
@@ -81,31 +90,39 @@ def collect(
     return kept, excluded
 
 
+NUMERIC_SCALES = ("comfort", "naturalness", "error_severity")
+
+
 def _human(records: list[dict[str, Any]]) -> dict[str, Any]:
     systems: dict[str, dict[str, Any]] = defaultdict(
-        lambda: {"ratings": defaultdict(Counter), "comfort": [], "categories": Counter()}
+        lambda: {
+            "ratings": defaultdict(Counter),
+            "numeric": defaultdict(list),
+            "categories": Counter(),
+        }
     )
     for record in records:
         data = systems[record["system_id"]]
         for name, value in record["ratings"].items():
-            if name == "comfort":
-                data["comfort"].append(value)
+            if name in NUMERIC_SCALES:
+                data["numeric"][name].append(value)
             else:
                 data["ratings"][name][str(value)] += 1
         data["categories"].update(record["error_categories"])
     human = {}
     for system_id, data in sorted(systems.items()):
-        comfort = data["comfort"]
         entry: dict[str, Any] = {
             "judgments": {k: dict(sorted(v.items())) for k, v in sorted(data["ratings"].items())},
             "error_categories": dict(sorted(data["categories"].items())),
         }
-        if comfort:
-            entry["comfort"] = {
-                "n": len(comfort),
-                "median": statistics.median(comfort),
-                "distribution": dict(sorted(Counter(comfort).items())),
-            }
+        for name in NUMERIC_SCALES:
+            values = data["numeric"].get(name)
+            if values:
+                entry[name] = {
+                    "n": len(values),
+                    "median": statistics.median(values),
+                    "distribution": {str(k): v for k, v in sorted(Counter(values).items())},
+                }
         human[system_id] = entry
     return human
 
@@ -136,13 +153,15 @@ def summarize(
             mode: _human([r for r in records if r["mode"] == mode]) for mode in MODE_TITLES
         },
         "interpretation": INTERPRETATION,
+        "review": {"status": "unreviewed", "reviewed_by": None, "reviewed_on": None},
         "targets": {
             "comfort": "PRD provisional target: median >= 4/5 and not below baseline. "
             "Not evaluated: no baseline yet.",
             "challenge_intelligibility": "PRD provisional target: >= 90%. Not evaluated: "
             "scoring unit is TBD.",
             "completeness": "Text-assisted 'all words spoken' judgments are reported, not gated.",
-            "naturalness": "Not collected: scale is TBD.",
+            "naturalness": "Project-specific 1-5 scale; no target defined.",
+            "error_severity": "Project-specific 0-3 scale; no target defined.",
         },
     }
 
@@ -168,6 +187,7 @@ def render(summary: Mapping[str, Any]) -> str:
             f"{a['gate_completeness']} |"
         )
     lines += ["", f"_{summary['interpretation']['automatic_checks']}_"]
+    lines += ["", f"_{summary['interpretation']['scales']}_"]
     for mode, title in MODE_TITLES.items():
         lines += ["", f"## Human judgments — {title}", ""]
         if mode == "blind":
@@ -179,11 +199,13 @@ def render(summary: Mapping[str, Any]) -> str:
             lines += [f"### {system_id}", ""]
             for name, counts in h["judgments"].items():
                 lines.append(f"- {name}: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
-            if "comfort" in h:
-                c = h["comfort"]
-                lines.append(
-                    f"- comfort: n {c['n']}, median {c['median']}, distribution {c['distribution']}"
-                )
+            for name in NUMERIC_SCALES:
+                if name in h:
+                    c = h[name]
+                    lines.append(
+                        f"- {name}: n {c['n']}, median {c['median']}, "
+                        f"distribution {c['distribution']}"
+                    )
             if h["error_categories"]:
                 lines.append(
                     "- error categories: "
@@ -230,3 +252,91 @@ def export(
     with (out / "LISTENING_REPORT.md").open("x", encoding="utf-8") as handle:
         handle.write(render(summary))
     return out, summary
+
+
+PUBLIC_FILES = ("listening_summary.json", "LISTENING_REPORT.md")
+# Per-record or private fields. ("text" is not listed: it is also the text-assisted mode
+# key; actual Tamil text is caught by the script check below.)
+FORBIDDEN_KEYS = frozenset(
+    {"notes", "reviewer_id", "session_id", "problem_word_indices", "audio", "audio_path"}
+)
+_ABS_PATH = re.compile(r"(/Users/|/home/|/private/|/var/folders/|[A-Za-z]:\\\\)")
+_REVIEWER = re.compile(r"^REV-\d{2,}$")
+_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _keys(value: Any) -> set[str]:
+    if isinstance(value, Mapping):
+        found = set(value)
+        for item in value.values():
+            found |= _keys(item)
+        return found
+    if isinstance(value, list):
+        return set().union(*(_keys(v) for v in value)) if value else set()
+    return set()
+
+
+def check_public(directory: Path) -> list[str]:
+    """Problems that stop an aggregate listening report from entering Git."""
+    directory = Path(directory)
+    problems = []
+    names = {p.name for p in directory.iterdir()} if directory.is_dir() else set()
+    missing = [n for n in PUBLIC_FILES if n not in names]
+    if missing:
+        return [f"missing {', '.join(missing)}"]
+    extra = sorted(names - set(PUBLIC_FILES))
+    if extra:
+        problems.append(f"only aggregate files may be published; remove {', '.join(extra)}")
+    summary = json.loads((directory / "listening_summary.json").read_text(encoding="utf-8"))
+    review = summary.get("review") or {}
+    if review.get("status") != "reviewed":
+        problems.append("review.status must be 'reviewed'")
+    if not _REVIEWER.match(str(review.get("reviewed_by") or "")):
+        problems.append("review.reviewed_by must be a pseudonymous code like REV-01")
+    if not _DATE.match(str(review.get("reviewed_on") or "")):
+        problems.append("review.reviewed_on must be YYYY-MM-DD")
+    leaked = sorted(_keys(summary) & FORBIDDEN_KEYS)
+    if leaked:
+        problems.append(f"summary holds individual or private fields: {', '.join(leaked)}")
+    for name in PUBLIC_FILES:
+        content = (directory / name).read_text(encoding="utf-8")
+        if any("\u0b80" <= c <= "\u0bff" for c in content):
+            problems.append(f"{name} contains Tamil text")
+        if _ABS_PATH.search(content):
+            problems.append(f"{name} contains an absolute path")
+    return problems
+
+
+def publish(
+    export_dir: Path, destination_root: Path, *, reviewed_by: str, reviewed_on: str
+) -> Path:
+    """Copy a reviewed aggregate into the repository. Never copies individual records."""
+    export_dir = Path(export_dir)
+    out = Path(destination_root) / export_dir.name
+    if out.exists():
+        raise ExportError(f"already published, not overwriting: {out}")
+    summary = json.loads((export_dir / "listening_summary.json").read_text(encoding="utf-8"))
+    summary["review"] = {
+        "status": "reviewed",
+        "reviewed_by": reviewed_by,
+        "reviewed_on": reviewed_on,
+    }
+    staging = out.with_name(out.name + ".partial")
+    if staging.exists():
+        raise ExportError(f"leftover staging folder, remove it first: {staging}")
+    staging.mkdir(parents=True)
+    (staging / "listening_summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (staging / "LISTENING_REPORT.md").write_text(
+        render(summary) + f"\nReviewed by {reviewed_by} on {reviewed_on} before publication.\n",
+        encoding="utf-8",
+    )
+    problems = check_public(staging)
+    if problems:
+        for child in staging.iterdir():
+            child.unlink()
+        staging.rmdir()
+        raise ExportError("not publishable: " + "; ".join(problems))
+    staging.rename(out)
+    return out

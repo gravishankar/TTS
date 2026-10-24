@@ -133,6 +133,25 @@ def test_listen_export_and_guards(tmp_path, monkeypatch, capsys):
     assert (run_dir / "listening" / "exports" / "x1" / "listener_results.jsonl").is_file()
     assert main(["listen", "export", "EXP-001", "--run", "r1", "--export-id", "x1"]) == 2
     assert main(["listen", "export", "EXP-001", "--run", "latest", "--export-id", "x2"]) == 0
+    experiments = tmp_path / "repo-experiments"
+    publish_args = [
+        "listen",
+        "publish",
+        "EXP-001",
+        "--run",
+        "r1",
+        "--export",
+        "x1",
+        "--experiments-dir",
+        str(experiments),
+        "--reviewed-on",
+        "2026-10-24",
+    ]
+    assert main([*publish_args, "--reviewed-by", "REV-01"]) == 0
+    published = experiments / "EXP-001" / "listening" / "x1"
+    assert main(["listen", "check-public", str(published)]) == 0
+    assert main(["listen", "check-public", str(run_dir / "listening" / "exports" / "x2")]) == 1
+    assert main([*publish_args, "--reviewed-by", "REV-01"]) == 2  # never overwrites
     assert main(["listen", "export", "EXP-001", "--run", "../r1"]) == 2
     base = ["listen", "serve", "EXP-001", "--run", "r1", "--port", "0"]
     assert main([*base, "--reviewer", "Geetha", "--mode", "blind"]) == 2  # names refused

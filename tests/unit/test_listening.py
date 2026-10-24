@@ -9,15 +9,20 @@ import pytest
 from listening_fixtures import MANIFEST, make_run, scales
 
 from tamil_tts.listening.app import ListeningApp, make_server
-from tamil_tts.listening.items import AudioKind, attach_text, load_run, ordered
-from tamil_tts.listening.report import ExportError, export
+from tamil_tts.listening.items import AudioKind, ListeningItem, attach_text, load_run, ordered
+from tamil_tts.listening.report import ExportError, check_public, export, publish
 from tamil_tts.listening.schema import public_criteria, validate_submission
 from tamil_tts.listening.store import SessionError, open_session
 
 STATIC = Path(__file__).resolve().parents[2] / "src" / "tamil_tts" / "listening" / "static"
-BLIND_OK = {"ratings": {"perceived_intelligibility": "yes", "comfort": 4}}
+BLIND_OK = {"ratings": {"perceived_intelligibility": "yes", "naturalness": 4, "comfort": 4}}
 TEXT_OK = {
-    "ratings": {"pronunciation": "errors", "completeness": "yes", "intelligibility": "yes"},
+    "ratings": {
+        "pronunciation": "errors",
+        "completeness": "yes",
+        "intelligibility": "yes",
+        "error_severity": 2,
+    },
     "error_categories": ["PHON-LIQUID"],
     "problem_word_indices": [1],
     "notes": "word 2 unclear",
@@ -92,12 +97,42 @@ def test_valid_submissions(run):
     ("change", "message"),
     [
         ({"ratings": {"perceived_intelligibility": "yes"}}, "'comfort' is required"),
-        ({"ratings": {"perceived_intelligibility": "maybe", "comfort": 4}}, "must be one of"),
-        ({"ratings": {"perceived_intelligibility": "yes", "comfort": 0}}, "integer from 1 to 5"),
-        ({"ratings": {"perceived_intelligibility": "yes", "comfort": 6}}, "integer from 1 to 5"),
-        ({"ratings": {"perceived_intelligibility": "yes", "comfort": "4"}}, "integer from 1 to 5"),
-        ({"ratings": {"perceived_intelligibility": "yes", "comfort": True}}, "integer from 1 to 5"),
-        ({"ratings": {"perceived_intelligibility": "yes", "comfort": 4, "naturalness": 3}}, "TBD"),
+        (
+            {"ratings": {"perceived_intelligibility": "maybe", "naturalness": 4, "comfort": 4}},
+            "must be one of",
+        ),
+        (
+            {"ratings": {"perceived_intelligibility": "yes", "naturalness": 4, "comfort": 0}},
+            "integer from 1 to 5",
+        ),
+        (
+            {"ratings": {"perceived_intelligibility": "yes", "naturalness": 4, "comfort": 6}},
+            "integer from 1 to 5",
+        ),
+        (
+            {"ratings": {"perceived_intelligibility": "yes", "naturalness": 4, "comfort": "4"}},
+            "integer from 1 to 5",
+        ),
+        (
+            {"ratings": {"perceived_intelligibility": "yes", "naturalness": 4, "comfort": True}},
+            "integer from 1 to 5",
+        ),
+        (
+            {"ratings": {"perceived_intelligibility": "yes", "naturalness": 0, "comfort": 4}},
+            "'naturalness' must be an integer from 1 to 5",
+        ),
+        (
+            {"ratings": {"perceived_intelligibility": "yes", "naturalness": 6, "comfort": 4}},
+            "'naturalness' must be an integer from 1 to 5",
+        ),
+        (
+            {"ratings": {"perceived_intelligibility": "yes", "comfort": 4}},
+            "'naturalness' is required",
+        ),
+        (
+            {"ratings": {**BLIND_OK["ratings"], "error_severity": 1}},
+            "not collected in blind mode",
+        ),
         (
             {
                 "ratings": {
@@ -132,8 +167,27 @@ def test_invalid_text_submissions(run):
     assert any(
         "out of range" in p for p in validate_submission(out_of_range, item, "text", scales())
     )
-    severity = {**TEXT_OK, "ratings": {**TEXT_OK["ratings"], "pronunciation_severity": 2}}
-    assert any("TBD" in p for p in validate_submission(severity, item, "text", scales()))
+
+    def problems(**ratings):
+        payload = {**TEXT_OK, "ratings": {**TEXT_OK["ratings"], **ratings}}
+        if ratings.get("_categories") is not None:
+            payload["error_categories"] = ratings.pop("_categories")
+            payload["ratings"].pop("_categories")
+        return validate_submission(payload, item, "text", scales())
+
+    assert any("from 0 to 3" in p for p in problems(error_severity=4))
+    assert any("from 0 to 3" in p for p in problems(error_severity=-1))
+    assert any("conflicts with recorded errors" in p for p in problems(error_severity=0))
+    assert any(
+        "needs at least one error category" in p
+        for p in problems(pronunciation="correct", error_severity=1, _categories=[])
+    )
+    assert problems(pronunciation="correct", error_severity=0, _categories=[]) == []
+    missing = {
+        **TEXT_OK,
+        "ratings": {k: v for k, v in TEXT_OK["ratings"].items() if k != "error_severity"},
+    }
+    assert "'error_severity' is required" in validate_submission(missing, item, "text", scales())
 
 
 def test_unrateable_items_rejected(run, tmp_path):
@@ -154,18 +208,42 @@ def test_unrateable_items_rejected(run, tmp_path):
     assert validate_submission(BLIND_OK, None, "blind", scales()) == ["unknown item"]
 
 
-def test_tbd_criteria_marked_for_page():
+def test_project_scales_and_labels_for_page():
     blind = {c["name"]: c for c in public_criteria(scales(), "blind")}
     text = {c["name"]: c for c in public_criteria(scales(), "text")}
     assert set(blind) == {"perceived_intelligibility", "naturalness", "comfort"}
-    assert set(text) == {
-        "pronunciation",
-        "completeness",
-        "intelligibility",
-        "pronunciation_severity",
-    }
-    assert blind["naturalness"]["type"] == "TBD" and blind["naturalness"]["required"] is False
+    assert set(text) == {"pronunciation", "completeness", "intelligibility", "error_severity"}
+    nat = blind["naturalness"]
+    assert (nat["type"], nat["min"], nat["max"], nat["required"]) == ("scale", 1, 5, True)
+    assert nat["labels"]["1"] == "Very unnatural; difficult to listen to."
+    assert nat["labels"]["5"] == "Very natural; close to comfortable human narration."
+    sev = text["error_severity"]
+    assert (sev["min"], sev["max"]) == (0, 3)
+    assert sev["labels"] == {"0": "None.", "1": "Minor.", "2": "Major.", "3": "Critical."}
     assert blind["comfort"]["min"] == 1 and blind["comfort"]["max"] == 5
+    assert "not MOS" in nat["label"]
+
+
+def test_tbd_criteria_are_still_rejected():
+    tbd_scales = scales()
+    tbd_scales["criteria"]["future"] = {"label": "x", "type": "TBD", "modes": ["blind"]}
+    page = {c["name"]: c for c in public_criteria(tbd_scales, "blind")}
+    assert page["future"]["type"] == "TBD" and page["future"]["required"] is False
+    payload = {"ratings": {**BLIND_OK["ratings"], "future": 2}}
+    item = ListeningItem(
+        key="s/S1",
+        system_id="s",
+        segment_id="S1",
+        entry_id="TAM-001",
+        split="test",
+        tags=(),
+        segment_sha256="0" * 64,
+        audio_kind=AudioKind.REAL,
+        audio_path=None,
+        audio_sha256="a",
+        duration_s=1.0,
+    )
+    assert any("TBD" in p for p in validate_submission(payload, item, "blind", tbd_scales))
 
 
 # --- sessions ----------------------------------------------------------------------
@@ -514,3 +592,102 @@ def test_blind_reveals_identity_and_text_only_after_rating(run):
     finally:
         httpd.shutdown()
         httpd.server_close()
+
+
+# --- Git policy (C5A) ----------------------------------------------------------------
+
+REPO = Path(__file__).resolve().parents[2]
+
+
+def _rated_export(run):
+    run_dir, results, items = run
+    session, _ = _open(run_dir, session_id="pub")
+    session.append(items["tone-a/TAM-009-S01"], {**BLIND_OK, "notes": "private remark"}, 1)
+    out, summary = export(run_dir, list(items.values()), results, "p1")
+    return out, summary
+
+
+def test_summary_reports_project_scales_and_is_unreviewed(run):
+    out, summary = _rated_export(run)
+    blind = summary["human_judgments"]["blind"]["tone-a"]
+    assert blind["naturalness"] == {"n": 1, "median": 4, "distribution": {"4": 1}}
+    assert summary["review"]["status"] == "unreviewed"
+    report = (out / "LISTENING_REPORT.md").read_text()
+    assert "not externally validated MOS" in report
+    assert check_public(out)  # unreviewed exports are never publishable as they are
+
+
+def test_publish_copies_only_reviewed_aggregates(run, tmp_path):
+    out, _ = _rated_export(run)
+    dest = tmp_path / "repo" / "experiments" / "EXP-001" / "listening"
+    published = publish(out, dest, reviewed_by="REV-01", reviewed_on="2026-10-24")
+    assert sorted(p.name for p in published.iterdir()) == [
+        "LISTENING_REPORT.md",
+        "listening_summary.json",
+    ]
+    assert check_public(published) == []
+    for name in ("LISTENING_REPORT.md", "listening_summary.json"):
+        content = (published / name).read_text()
+        assert "private remark" not in content and "reviewer_id" not in content
+    assert "Reviewed by REV-01 on 2026-10-24" in (published / "LISTENING_REPORT.md").read_text()
+    with pytest.raises(ExportError, match="not overwriting"):
+        publish(out, dest, reviewed_by="REV-01", reviewed_on="2026-10-24")
+    with pytest.raises(ExportError, match="pseudonymous"):
+        publish(out, tmp_path / "other", reviewed_by="Geetha", reviewed_on="2026-10-24")
+    assert not (tmp_path / "other" / "p1").exists()
+
+
+def test_check_public_rejects_individual_or_private_content(run, tmp_path):
+    out, _ = _rated_export(run)
+    published = publish(out, tmp_path / "pub", reviewed_by="REV-01", reviewed_on="2026-10-24")
+    (published / "listener_results.jsonl").write_text("{}\n")
+    assert any("only aggregate files" in p for p in check_public(published))
+    (published / "listener_results.jsonl").unlink()
+    summary = json.loads((published / "listening_summary.json").read_text())
+    summary["notes"] = ["வாழைப்பழம்"]
+    (published / "listening_summary.json").write_text(json.dumps(summary, ensure_ascii=False))
+    problems = check_public(published)
+    assert any("individual or private fields: notes" in p for p in problems)
+    assert any("contains Tamil text" in p for p in problems)
+
+
+def test_gitignore_blocks_individual_listening_records():
+    import subprocess
+
+    probes = [
+        "experiments/EXP-001/listener_results.jsonl",
+        "listener_results-2026.jsonl",
+        "x/listening/sessions/REV-01-blind/ratings.jsonl",
+        "x/listening/sessions/REV-01-blind/session.json",
+        "x/listening/exports/e1/listening_summary.json",
+        "clip.wav",
+    ]
+    allowed = [
+        "experiments/EXP-001/listening/e1/listening_summary.json",
+        "experiments/EXP-001/listening/e1/LISTENING_REPORT.md",
+    ]
+    check = subprocess.run(
+        ["git", "check-ignore", "--no-index", *probes, *allowed],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+    ignored = set(check.stdout.split())
+    assert ignored == set(probes)
+
+
+def test_no_individual_listening_records_are_tracked():
+    import subprocess
+
+    tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True, text=True)
+    names = tracked.stdout.splitlines()
+    assert not [
+        n
+        for n in names
+        if "listener_results" in n
+        or n.endswith("ratings.jsonl")
+        or "/listening/sessions/" in n
+        or "/listening/exports/" in n
+    ]
+    for summary in (n for n in names if n.endswith("listening_summary.json")):
+        assert check_public((REPO / summary).parent) == [], summary
