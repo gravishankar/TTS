@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from tamil_tts.cli import main
 
@@ -117,3 +118,24 @@ def test_audio_inspect(tmp_path, capsys):
     assert main(["audio", "inspect", str(silent)]) == 1
     (tmp_path / "bad.wav").write_bytes(b"nope")
     assert main(["audio", "inspect", str(tmp_path / "bad.wav")]) == 1
+
+
+def test_listen_export_and_guards(tmp_path, monkeypatch, capsys):
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from listening_fixtures import make_run
+
+    run_dir = make_run(tmp_path)
+    monkeypatch.setenv("TAMIL_TTS_OUTPUT_ROOT", str(tmp_path / "outputs"))
+    monkeypatch.delenv("TAM_MANIFEST", raising=False)
+    assert main(["listen", "export", "EXP-001", "--run", "r1", "--export-id", "x1"]) == 0
+    assert (run_dir / "listening" / "exports" / "x1" / "listener_results.jsonl").is_file()
+    assert main(["listen", "export", "EXP-001", "--run", "r1", "--export-id", "x1"]) == 2
+    assert main(["listen", "export", "EXP-001", "--run", "latest", "--export-id", "x2"]) == 0
+    assert main(["listen", "export", "EXP-001", "--run", "../r1"]) == 2
+    base = ["listen", "serve", "EXP-001", "--run", "r1", "--port", "0"]
+    assert main([*base, "--reviewer", "Geetha", "--mode", "blind"]) == 2  # names refused
+    assert main([*base, "--reviewer", "REV-01", "--mode", "text"]) == 2  # no manifest
+    err = capsys.readouterr().err
+    assert "pseudonymous" in err and "private manifest" in err

@@ -156,6 +156,18 @@ committed automatically.
 ### 3.5 Human listening interface (§17)
 A local-only browser app launched with `tamil-tts listen`. See [ACCESSIBILITY.md](ACCESSIBILITY.md).
 
+**Implemented** (`src/tamil_tts/listening/`, guide: [LISTENING.md](LISTENING.md)):
+- `app.py`: standard-library HTTP server on 127.0.0.1, with a per-session token, a local Host
+  check, and a strict CSP. One static page (`static/`), plain JS, no framework: native form
+  controls and `<audio>` give keyboard and screen-reader support.
+- `items.py`: items come from a run's `segments.jsonl` and `results.json`. Audio is re-checked and
+  labelled real, mock, missing, invalid, silent or error; only real audio is served or rateable.
+  Text mode attaches text from the private manifest, verified by segment checksum.
+- `schema.py`: validates submissions against `configs/listening.yaml`. TBD scales are rejected.
+- `store.py`: append-only sessions under `<run>/listening/sessions/`, which can be resumed.
+- `report.py`: each export goes to a new folder. `listener_results.jsonl` drops notes and text.
+  The summary keeps automatic checks and human judgments separate.
+
 ### 3.6 Fine-tuning (§18)
 Scripts and configs are prepared in the cloud and executed locally. Checkpoints go to
 `.local/checkpoints/`; baseline, best and last are kept. TRAIN supplies gradient updates and

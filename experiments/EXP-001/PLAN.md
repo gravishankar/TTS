@@ -19,6 +19,13 @@ tamil-tts experiment run EXP-001 --smoke
 tamil-tts experiment run EXP-001
 ```
 
+LISTENING (after a real run)
+```bash
+tamil-tts listen serve EXP-001 --run <run-id> --reviewer REV-01 --mode blind
+tamil-tts listen serve EXP-001 --run <run-id> --reviewer REV-01 --mode text
+tamil-tts listen export EXP-001 --run <run-id>
+```
+
 GATES
 Completeness 100% (hard). The automated check gives only `provisional_pass` (audio present, not
 silent); word-level completeness needs human listening. Mock runs give `mock_not_evidence`.

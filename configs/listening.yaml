@@ -1,0 +1,43 @@
+# Human listening criteria (PRD §17, ACCESSIBILITY.md).
+# Only scales defined in the PRD are numeric. "TBD" criteria are shown to reviewers as
+# "not collected (scale TBD)" and any submitted value is rejected.
+# Modes (PRD §17): "blind" tests intelligibility without showing text; "text" tests
+# pronunciation and completeness with the reference text visible to authorized reviewers.
+criteria:
+  intelligibility:
+    label: "Could you understand the speech?"
+    type: choice
+    options: ["yes", "no", "unsure"]      # per-segment judgment; aggregation unit is TBD (release_gates)
+    modes: [blind]
+    required: true
+  completeness:
+    label: "Were all words spoken, with nothing missing or cut off?"
+    type: choice
+    options: ["yes", "no", "unsure"]      # PRD §16: zero missing text is a hard gate
+    modes: [text]
+    required: true
+  pronunciation:
+    label: "Were all words pronounced correctly?"
+    type: choice
+    options: ["correct", "errors", "unsure"]
+    modes: [text]
+    required: true
+  comfort:
+    label: "Listening comfort (1 = very uncomfortable, 5 = very comfortable)"
+    type: scale
+    min: 1                          # PRD §17: comfort 1–5
+    max: 5
+    modes: [blind, text]
+    required: true
+  naturalness:
+    label: "Naturalness"
+    type: TBD                       # not defined in the PRD
+    modes: [blind, text]
+    required: false
+  pronunciation_severity:
+    label: "Severity of pronunciation errors"
+    type: TBD                       # errors.jsonl shows "severity", but no scale is defined
+    modes: [text]
+    required: false
+notes:
+  max_chars: 1000                   # private: kept in the session, never exported

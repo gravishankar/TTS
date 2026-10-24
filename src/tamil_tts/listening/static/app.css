@@ -1,0 +1,135 @@
+:root {
+  --fg: #111;
+  --bg: #fff;
+  --muted: #444;
+  --accent: #0b4f9c;
+  --warn-bg: #fff3cd;
+  --warn-fg: #4d3800;
+  --ok-bg: #e6f4ea;
+  --focus: #c2410c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #f2f2f2;
+    --bg: #121212;
+    --muted: #cfcfcf;
+    --accent: #8ab4f8;
+    --warn-bg: #3d3000;
+    --warn-fg: #ffe9a8;
+    --ok-bg: #12351f;
+    --focus: #fdba74;
+  }
+}
+
+body {
+  margin: 0 auto;
+  max-width: 60rem;
+  padding: 1rem;
+  font: 1.125rem/1.6 system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.skip-link {
+  position: absolute;
+  left: -999rem;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+  background: var(--bg);
+  padding: 0.5rem;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  margin: 0.2rem;
+  border: 2px solid var(--accent);
+  border-radius: 0.4rem;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+button[aria-pressed="true"],
+button[aria-current="true"] {
+  background: var(--accent);
+  color: var(--bg);
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+fieldset {
+  border: 1px solid var(--muted);
+  border-radius: 0.4rem;
+  margin: 0.8rem 0;
+}
+legend {
+  font-weight: 600;
+}
+.options label {
+  display: inline-block;
+  margin: 0.2rem 0.8rem 0.2rem 0;
+}
+input[type="radio"],
+input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+textarea {
+  width: 100%;
+  font: inherit;
+}
+
+#ref-text {
+  font-size: 1.5rem;
+  line-height: 2;
+}
+#ref-text button {
+  font-size: 1.4rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border: 2px solid var(--muted);
+  border-radius: 0.4rem;
+  font-weight: 600;
+}
+.badge.real {
+  background: var(--ok-bg);
+}
+.notice.warning,
+.badge.unrateable {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+.hint,
+#session-info {
+  color: var(--muted);
+}
+#errors:not(:empty) {
+  border-left: 4px solid var(--focus);
+  padding-left: 0.6rem;
+}
+kbd {
+  font-size: 0.8em;
+  border: 1px solid var(--muted);
+  border-radius: 0.2rem;
+  padding: 0 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

@@ -52,6 +52,12 @@ for intelligibility, completeness or listening comfort (§4).
 - Results are written to `listener_results.jsonl`. Claude analyses the structured results and never
   ingests audio.
 
+**Implemented (C5):** `tamil-tts listen serve` / `export`; see [LISTENING.md](LISTENING.md).
+Blind mode collects intelligibility and comfort. Text mode collects pronunciation, completeness,
+error categories, problem-word positions and comfort. Naturalness and severity are TBD. Keyboard
+operation, labels, live regions and `lang="ta"` are covered by automated browser tests.
+A/B comparison and sustained-listening sessions are not implemented yet.
+
 ## 5. Evaluation data for accessibility (§8)
 
 - The CHALLENGE split targets hard phonology and real difficult book prose. At least half of its

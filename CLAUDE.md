@@ -81,6 +81,8 @@ Improve verified Tamil text → accessible offline speech, measured on frozen TA
 - Verify each model on the Mac with docs/MODEL_VERIFICATION_CHECKLIST.md before writing its adapter.
 - One Python environment per model under `$TAMIL_TTS_ENV_ROOT`; adapters call it as a subprocess.
 - Mock results are never evidence about a real model. Automated completeness is provisional only.
+- Listening (docs/LISTENING.md): only real audio is rateable; TBD scales are rejected; session
+  files and notes stay private; exports never contain Tamil text, notes or paths.
 
 ## DEV COMMANDS
 - `python3.11 -m venv .venv && .venv/bin/pip install -e '.[dev]'`

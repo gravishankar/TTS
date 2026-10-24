@@ -1,14 +1,15 @@
 """`tamil-tts` command-line interface.
 
-Implemented: config, env, models, experiment (run, status), audio, verify, manifest, splits
-and text commands.
-Listening, eval report, compare and release-check (PRD §12) are not implemented yet.
+Implemented: config, env, models, experiment (run, status), listen (serve, export), audio,
+verify, manifest, splits and text commands. Eval report, compare and release-check (PRD §12)
+are not implemented yet.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -32,6 +33,11 @@ from tamil_tts.experiment import (
 )
 from tamil_tts.frontend import Normalizer, SegmentationError, segment_text
 from tamil_tts.frontend.normalize import find_unexpanded_numbers
+from tamil_tts.listening.app import ListeningApp, make_server
+from tamil_tts.listening.items import RunLoadError, attach_text, load_run, ordered
+from tamil_tts.listening.report import ExportError
+from tamil_tts.listening.report import export as export_listening
+from tamil_tts.listening.store import SessionError, open_session
 from tamil_tts.manifest import Issue, load_manifest
 from tamil_tts.models import ModelIdentity, candidate_models
 from tamil_tts.models.mock import MockTTSModel
@@ -135,6 +141,72 @@ def cmd_experiment_status(args: argparse.Namespace) -> int:
     for run in runs:
         state = "complete" if (run / "results.json").is_file() else "incomplete"
         print(f"{run.name}: {state}")
+    return 0
+
+
+def _run_dir(experiment: str, run: str) -> Path:
+    roots = resolve_local_roots(required=("outputs",))
+    base = roots.outputs / experiment
+    if run == "latest":
+        runs = sorted(p for p in base.glob("*") if (p / "results.json").is_file())
+        if not runs:
+            raise RunLoadError(f"no complete runs for {experiment}")
+        return runs[-1]
+    if "/" in run or run.startswith("."):
+        raise RunLoadError("run must be a run id, not a path")
+    return base / run
+
+
+def cmd_listen_serve(args: argparse.Namespace) -> int:
+    run_dir = _run_dir(args.experiment, args.run)
+    results, items = load_run(run_dir)
+    scales = load_yaml(Path(args.config_dir) / "listening.yaml")
+    if args.mode == "text":
+        manifest = args.manifest or os.environ.get("TAM_MANIFEST")
+        if not manifest:
+            raise ConfigError("text mode needs the private manifest: --manifest or TAM_MANIFEST")
+        eval_cfg = load_yaml(Path(args.config_dir) / "eval.yaml")
+        max_chars = get_value(eval_cfg, "segmentation.max_chars", allow_tbd=True)
+        items = attach_text(items, Path(manifest), None if is_tbd(max_chars) else int(max_chars))
+    session, resumed = open_session(
+        run_dir,
+        experiment=results["experiment"],
+        run_id=results["run_id"],
+        reviewer_id=args.reviewer,
+        mode=args.mode,
+        session_id=args.session,
+    )
+    app = ListeningApp(
+        results=results,
+        items=ordered(items, session.meta["order_seed"]),
+        session=session,
+        scales=scales,
+    )
+    server = make_server(app, args.port)
+    port = server.server_address[1]
+    state = app.state()["progress"]
+    print(f"{'Resumed' if resumed else 'New'} session {session.session_id} ({args.mode} mode)")
+    print(f"{state['rated']}/{state['rateable']} rateable items rated; {state['total']} items")
+    print(f"Open: http://127.0.0.1:{port}/?token={app.token}")
+    print("Press Ctrl+C to stop. Ratings are saved after each Save.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("stopped")
+    finally:
+        server.server_close()
+    return 0
+
+
+def cmd_listen_export(args: argparse.Namespace) -> int:
+    run_dir = _run_dir(args.experiment, args.run)
+    results, items = load_run(run_dir)
+    out, summary = export_listening(run_dir, items, results, args.export_id)
+    print(
+        f"{summary['records']} record(s) from {summary['reviewers']} reviewer(s); "
+        f"excluded {summary['excluded'] or 'none'}"
+    )
+    print(f"export: {out}")
     return 0
 
 
@@ -269,6 +341,25 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("experiment")
     status.set_defaults(func=cmd_experiment_status)
 
+    listen = groups.add_parser("listen", help="local listening evaluation (PRD §17)")
+    listen_cmds = listen.add_subparsers(dest="command", required=True)
+    serve = listen_cmds.add_parser("serve", help="start the local listening page")
+    serve.add_argument("experiment", help="e.g. EXP-001")
+    serve.add_argument(
+        "--run", required=True, help="run id under $TAMIL_TTS_OUTPUT_ROOT, or latest"
+    )
+    serve.add_argument("--reviewer", required=True, help="pseudonymous id like REV-01")
+    serve.add_argument("--mode", required=True, choices=["blind", "text"])
+    serve.add_argument("--session", help="resume this session id")
+    serve.add_argument("--manifest", type=Path, help="private manifest (text mode)")
+    serve.add_argument("--port", type=int, default=8765)
+    serve.set_defaults(func=cmd_listen_serve)
+    exp = listen_cmds.add_parser("export", help="write listener_results.jsonl and a summary")
+    exp.add_argument("experiment")
+    exp.add_argument("--run", required=True)
+    exp.add_argument("--export-id", help="default: UTC timestamp")
+    exp.set_defaults(func=cmd_listen_export)
+
     audio = groups.add_parser("audio", help="inspect local audio files")
     audio_cmds = audio.add_subparsers(dest="command", required=True)
     inspect = audio_cmds.add_parser("inspect", help="WAV format, duration, silence, RTF")
@@ -319,7 +410,16 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)
-    except (ConfigError, ExperimentError, SegmentationError, OSError, ValueError) as exc:
+    except (
+        ConfigError,
+        ExperimentError,
+        SegmentationError,
+        RunLoadError,
+        SessionError,
+        ExportError,
+        OSError,
+        ValueError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 

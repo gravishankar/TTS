@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tamil listening evaluation</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#item-heading">Skip to the current item</a>
+  <header>
+    <h1>Tamil listening evaluation</h1>
+    <p id="session-info">Loading session…</p>
+    <p id="mode-info" class="notice"></p>
+    <p id="mock-banner" class="notice warning" hidden>
+      This is a mock run. Its audio is silent test output, not speech, and cannot be rated.
+    </p>
+  </header>
+
+  <main>
+    <section aria-labelledby="item-heading">
+      <h2 id="item-heading" tabindex="-1">Item</h2>
+      <p id="progress"></p>
+      <p id="audio-kind" class="badge"></p>
+
+      <div class="player">
+        <audio id="player" preload="none" aria-describedby="audio-kind"></audio>
+        <div class="controls" role="group" aria-label="Playback">
+          <button type="button" id="play" aria-keyshortcuts="p">Play <kbd>P</kbd></button>
+          <button type="button" id="replay" aria-keyshortcuts="r">Replay from start <kbd>R</kbd></button>
+          <button type="button" id="prev" aria-keyshortcuts="b">Previous item <kbd>B</kbd></button>
+          <button type="button" id="next" aria-keyshortcuts="n">Next item <kbd>N</kbd></button>
+        </div>
+      </div>
+
+      <section id="text-section" aria-labelledby="text-heading" hidden>
+        <h3 id="text-heading">Reference text</h3>
+        <p class="hint">Select a word button to mark it as a problem word. Select it again to clear it.</p>
+        <p id="ref-text" lang="ta"></p>
+        <p id="text-note" class="notice warning" hidden></p>
+      </section>
+
+      <form id="rating-form" novalidate>
+        <fieldset id="rating-fields">
+          <legend>Your judgments for this item</legend>
+          <div id="criteria"></div>
+          <fieldset id="categories">
+            <legend>Error categories (Tamil taxonomy, optional unless pronunciation has errors)</legend>
+            <div id="category-options" class="options"></div>
+          </fieldset>
+          <p>
+            <label for="notes">Notes (private to this session, never exported)</label>
+            <textarea id="notes" rows="3"></textarea>
+          </p>
+          <button type="submit" id="save" aria-keyshortcuts="s">Save rating <kbd>S</kbd></button>
+        </fieldset>
+      </form>
+      <div id="status" role="status" aria-live="polite"></div>
+      <div id="errors" role="alert"></div>
+    </section>
+
+    <nav aria-labelledby="items-heading">
+      <h2 id="items-heading">All items</h2>
+      <ol id="item-list"></ol>
+    </nav>
+
+    <section aria-labelledby="keys-heading">
+      <h2 id="keys-heading">Keyboard shortcuts</h2>
+      <p>Shortcuts work when the focus is not in a text field.</p>
+      <ul>
+        <li><kbd>P</kbd> play or pause</li>
+        <li><kbd>R</kbd> replay from the start</li>
+        <li><kbd>N</kbd> next item, <kbd>B</kbd> previous item</li>
+        <li><kbd>S</kbd> save the rating</li>
+        <li><kbd>Tab</kbd> moves between controls; arrow keys move within a choice group</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

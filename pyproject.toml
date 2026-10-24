@@ -12,12 +12,16 @@ dependencies = ["PyYAML>=6.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
+browser = ["playwright>=1.40"]  # optional: real-browser keyboard tests
 
 [project.scripts]
 tamil-tts = "tamil_tts.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"tamil_tts.listening" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
